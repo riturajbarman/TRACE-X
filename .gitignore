@@ -1,0 +1,80 @@
+# =========================
+# TRACE-X
+# =========================
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+ENV/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Test artifacts
+coverage/
+htmlcov/
+.pytest_cache/
+
+# Docker
+docker-data/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Forensic evidence
+evidence/
+evidence-data/
+cases/
+*.E01
+*.e01
+*.dd
+*.raw
+*.img
+*.aff4
+
+# Generated reports
+reports/generated/
+
+# Secrets / credentials
+*.pem
+*.key
+*.p12
+*.pfx
+credentials/
+secrets/
+
+# OS / tooling
+.DS_Store
+Thumbs.db
