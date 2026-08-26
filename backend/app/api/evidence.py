@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -31,6 +31,23 @@ def create_evidence(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
+
+
+@router.get(
+    "",
+    response_model=list[EvidenceResponse],
+)
+def list_evidence(
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    service = EvidenceService(db)
+
+    return service.list(
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(

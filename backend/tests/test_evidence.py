@@ -111,3 +111,54 @@ def test_invalid_evidence_input():
     )
 
     assert response.status_code == 422
+def test_list_evidence():
+    client.post(
+        "/evidence",
+        json=evidence_payload(),
+    )
+
+    client.post(
+        "/evidence",
+        json=evidence_payload(),
+    )
+
+    response = client.get("/evidence")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert isinstance(data, list)
+    assert len(data) >= 2
+
+
+def test_list_evidence_pagination():
+    for _ in range(3):
+        response = client.post(
+            "/evidence",
+            json=evidence_payload(),
+        )
+        assert response.status_code == 201
+
+    response = client.get("/evidence?limit=2&offset=0")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert isinstance(data, list)
+    assert len(data) == 2
+
+
+def test_list_evidence_invalid_pagination():
+    response = client.get("/evidence?limit=0")
+
+    assert response.status_code == 422
+
+    response = client.get("/evidence?limit=101")
+
+    assert response.status_code == 422
+
+    response = client.get("/evidence?offset=-1")
+
+    assert response.status_code == 422
