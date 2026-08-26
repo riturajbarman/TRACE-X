@@ -162,3 +162,56 @@ def test_list_evidence_invalid_pagination():
     response = client.get("/evidence?offset=-1")
 
     assert response.status_code == 422
+
+def test_update_evidence_status():
+    create_response = client.post(
+        "/evidence",
+        json=evidence_payload(),
+    )
+
+    assert create_response.status_code == 201
+
+    evidence_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/evidence/{evidence_id}/status?new_status=PROCESSING",
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == evidence_id
+    assert data["status"] == "PROCESSING"
+
+
+def test_update_evidence_status_to_ready():
+    create_response = client.post(
+        "/evidence",
+        json=evidence_payload(),
+    )
+
+    assert create_response.status_code == 201
+
+    evidence_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/evidence/{evidence_id}/status?new_status=READY",
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "READY"
+
+
+def test_update_nonexistent_evidence_status():
+    evidence_id = uuid4()
+
+    response = client.patch(
+        f"/evidence/{evidence_id}/status?new_status=PROCESSING",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Evidence not found"

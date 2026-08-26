@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.domain.evidence.models import EvidenceStatus
 from app.domain.evidence.schemas import EvidenceCreate, EvidenceResponse
 from app.domain.evidence.service import EvidenceService
 
@@ -61,6 +62,31 @@ def get_evidence(
     service = EvidenceService(db)
 
     evidence = service.get_by_id(evidence_id)
+
+    if evidence is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evidence not found",
+        )
+
+    return evidence
+
+
+@router.patch(
+    "/{evidence_id}/status",
+    response_model=EvidenceResponse,
+)
+def update_evidence_status(
+    evidence_id: UUID,
+    new_status: EvidenceStatus,
+    db: Session = Depends(get_db),
+):
+    service = EvidenceService(db)
+
+    evidence = service.update_status(
+        evidence_id=evidence_id,
+        new_status=new_status,
+    )
 
     if evidence is None:
         raise HTTPException(
