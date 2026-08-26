@@ -68,6 +68,27 @@ def test_get_nonexistent_evidence():
     assert response.json()["detail"] == "Evidence not found"
 
 
+def test_invalid_evidence_id():
+    response = client.get("/evidence/not-a-uuid")
+
+    assert response.status_code == 422
+
+
+def test_invalid_evidence_input():
+    payload = evidence_payload(
+        name="",
+        sha256="invalid",
+        size_bytes=-1,
+    )
+
+    response = client.post(
+        "/evidence",
+        json=payload,
+    )
+
+    assert response.status_code == 422
+
+
 def test_duplicate_sha256():
     payload = evidence_payload()
 
@@ -92,25 +113,6 @@ def test_duplicate_sha256():
     )
 
 
-def test_invalid_evidence_id():
-    response = client.get("/evidence/not-a-uuid")
-
-    assert response.status_code == 422
-
-
-def test_invalid_evidence_input():
-    payload = evidence_payload(
-        name="",
-        sha256="invalid",
-        size_bytes=-1,
-    )
-
-    response = client.post(
-        "/evidence",
-        json=payload,
-    )
-
-    assert response.status_code == 422
 def test_list_evidence():
     client.post(
         "/evidence",
@@ -138,6 +140,7 @@ def test_list_evidence_pagination():
             "/evidence",
             json=evidence_payload(),
         )
+
         assert response.status_code == 201
 
     response = client.get("/evidence?limit=2&offset=0")
@@ -162,6 +165,7 @@ def test_list_evidence_invalid_pagination():
     response = client.get("/evidence?offset=-1")
 
     assert response.status_code == 422
+
 
 def test_update_evidence_status():
     create_response = client.post(
@@ -195,6 +199,12 @@ def test_update_evidence_status_to_ready():
 
     evidence_id = create_response.json()["id"]
 
+    processing_response = client.patch(
+        f"/evidence/{evidence_id}/status?new_status=PROCESSING",
+    )
+
+    assert processing_response.status_code == 200
+
     response = client.patch(
         f"/evidence/{evidence_id}/status?new_status=READY",
     )
@@ -204,6 +214,25 @@ def test_update_evidence_status_to_ready():
     data = response.json()
 
     assert data["status"] == "READY"
+    assert data["processing_error"] is None
+
+
+def test_invalid_evidence_status_transition():
+    create_response = client.post(
+        "/evidence",
+        json=evidence_payload(),
+    )
+
+    assert create_response.status_code == 201
+
+    evidence_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/evidence/{evidence_id}/status?new_status=READY",
+    )
+
+    assert response.status_code == 409
+    assert "Invalid evidence status transition" in response.json()["detail"]
 
 
 def test_update_nonexistent_evidence_status():

@@ -83,10 +83,16 @@ def update_evidence_status(
 ):
     service = EvidenceService(db)
 
-    evidence = service.update_status(
-        evidence_id=evidence_id,
-        new_status=new_status,
-    )
+    try:
+        evidence = service.update_status(
+            evidence_id=evidence_id,
+            new_status=new_status,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
     if evidence is None:
         raise HTTPException(
