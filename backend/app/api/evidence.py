@@ -1,0 +1,54 @@
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.domain.evidence.schemas import EvidenceCreate, EvidenceResponse
+from app.domain.evidence.service import EvidenceService
+
+router = APIRouter(
+    prefix="/evidence",
+    tags=["evidence"],
+)
+
+
+@router.post(
+    "",
+    response_model=EvidenceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_evidence(
+    data: EvidenceCreate,
+    db: Session = Depends(get_db),
+):
+    service = EvidenceService(db)
+
+    try:
+        return service.create(data)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get(
+    "/{evidence_id}",
+    response_model=EvidenceResponse,
+)
+def get_evidence(
+    evidence_id: UUID,
+    db: Session = Depends(get_db),
+):
+    service = EvidenceService(db)
+
+    evidence = service.get_by_id(evidence_id)
+
+    if evidence is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evidence not found",
+        )
+
+    return evidence
