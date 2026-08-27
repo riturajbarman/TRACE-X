@@ -15,6 +15,27 @@ router = APIRouter(
 
 
 @router.get(
+    "/{event_id}",
+    response_model=EventResponse,
+)
+def get_event(
+    event_id: UUID,
+    db: Session = Depends(get_db),
+):
+    service = EventService(db)
+
+    event = service.get_by_id(event_id)
+
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found",
+        )
+
+    return event
+
+
+@router.get(
     "/evidence/{evidence_id}",
     response_model=list[EventResponse],
 )

@@ -26,3 +26,8 @@ class CaseResponse(BaseModel):
     created_by: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class CaseSummaryResponse(CaseResponse):
+    evidence_count: int
+    event_count: int
