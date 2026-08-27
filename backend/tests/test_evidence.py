@@ -8,8 +8,27 @@ from app.main import app
 client = TestClient(app)
 
 
-def evidence_payload(**overrides):
+def create_test_case():
+    response = client.post(
+        "/cases",
+        json={
+            "title": f"Test Case {uuid4()}",
+            "description": "Test forensic case",
+            "created_by": "pytest",
+        },
+    )
+
+    assert response.status_code == 201
+
+    return response.json()["id"]
+
+
+def evidence_payload(case_id=None, **overrides):
+    if case_id is None:
+        case_id = create_test_case()
+
     payload = {
+        "case_id": str(case_id),
         "name": "test-evidence",
         "description": "Test forensic evidence",
         "sha256": uuid4().hex * 2,
@@ -21,9 +40,11 @@ def evidence_payload(**overrides):
 
 
 def test_create_evidence():
+    case_id = create_test_case()
+
     response = client.post(
         "/evidence",
-        json=evidence_payload(),
+        json=evidence_payload(case_id),
     )
 
     assert response.status_code == 201
@@ -31,6 +52,7 @@ def test_create_evidence():
     data = response.json()
 
     assert "id" in data
+    assert data["case_id"] == case_id
     assert data["name"] == "test-evidence"
     assert data["description"] == "Test forensic evidence"
     assert data["size_bytes"] == 1024
@@ -39,9 +61,11 @@ def test_create_evidence():
 
 
 def test_get_evidence():
+    case_id = create_test_case()
+
     create_response = client.post(
         "/evidence",
-        json=evidence_payload(),
+        json=evidence_payload(case_id),
     )
 
     assert create_response.status_code == 201
@@ -55,6 +79,7 @@ def test_get_evidence():
     data = response.json()
 
     assert data["id"] == evidence_id
+    assert data["case_id"] == case_id
     assert data["name"] == "test-evidence"
     assert data["status"] == "PENDING"
 
@@ -90,7 +115,8 @@ def test_invalid_evidence_input():
 
 
 def test_duplicate_sha256():
-    payload = evidence_payload()
+    case_id = create_test_case()
+    payload = evidence_payload(case_id)
 
     first_response = client.post(
         "/evidence",
@@ -114,14 +140,16 @@ def test_duplicate_sha256():
 
 
 def test_list_evidence():
+    case_id = create_test_case()
+
     client.post(
         "/evidence",
-        json=evidence_payload(),
+        json=evidence_payload(case_id),
     )
 
     client.post(
         "/evidence",
-        json=evidence_payload(),
+        json=evidence_payload(case_id),
     )
 
     response = client.get("/evidence")
@@ -135,10 +163,12 @@ def test_list_evidence():
 
 
 def test_list_evidence_pagination():
+    case_id = create_test_case()
+
     for _ in range(3):
         response = client.post(
             "/evidence",
-            json=evidence_payload(),
+            json=evidence_payload(case_id),
         )
 
         assert response.status_code == 201
@@ -168,9 +198,11 @@ def test_list_evidence_invalid_pagination():
 
 
 def test_update_evidence_status():
+    case_id = create_test_case()
+
     create_response = client.post(
         "/evidence",
-        json=evidence_payload(),
+        json=evidence_payload(case_id),
     )
 
     assert create_response.status_code == 201
@@ -186,13 +218,16 @@ def test_update_evidence_status():
     data = response.json()
 
     assert data["id"] == evidence_id
+    assert data["case_id"] == case_id
     assert data["status"] == "PROCESSING"
 
 
 def test_update_evidence_status_to_ready():
+    case_id = create_test_case()
+
     create_response = client.post(
         "/evidence",
-        json=evidence_payload(),
+        json=evidence_payload(case_id),
     )
 
     assert create_response.status_code == 201
@@ -213,14 +248,17 @@ def test_update_evidence_status_to_ready():
 
     data = response.json()
 
+    assert data["case_id"] == case_id
     assert data["status"] == "READY"
     assert data["processing_error"] is None
 
 
 def test_invalid_evidence_status_transition():
+    case_id = create_test_case()
+
     create_response = client.post(
         "/evidence",
-        json=evidence_payload(),
+        json=evidence_payload(case_id),
     )
 
     assert create_response.status_code == 201

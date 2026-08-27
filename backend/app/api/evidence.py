@@ -28,6 +28,12 @@ def create_evidence(
     try:
         return service.create(data)
     except ValueError as exc:
+        if str(exc) == "Case not found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Case not found",
+            ) from exc
+
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),

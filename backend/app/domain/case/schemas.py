@@ -1,0 +1,28 @@
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.domain.case.models import CaseStatus
+
+
+class CaseCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    created_by: str | None = Field(default=None, max_length=255)
+
+
+class CaseStatusUpdate(BaseModel):
+    status: CaseStatus
+
+
+class CaseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+    description: str | None
+    status: CaseStatus
+    created_by: str | None
+    created_at: datetime
+    updated_at: datetime
