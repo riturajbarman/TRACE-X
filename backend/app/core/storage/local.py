@@ -12,10 +12,16 @@ class LocalEvidenceStorage:
         self.root_path.mkdir(parents=True, exist_ok=True)
 
     def _evidence_directory(self, evidence_id: UUID) -> Path:
-        return self.root_path / str(evidence_id)
+        directory = (self.root_path / str(evidence_id)).resolve()
+        if not directory.is_relative_to(self.root_path):
+            raise ValueError(f"Path escape attempt: {evidence_id}")
+        return directory
 
     def original_path(self, evidence_id: UUID) -> Path:
-        return self._evidence_directory(evidence_id) / "original"
+        path = (self._evidence_directory(evidence_id) / "original").resolve()
+        if not path.is_relative_to(self.root_path):
+            raise ValueError(f"Path escape attempt: {evidence_id}")
+        return path
 
     def exists(self, evidence_id: UUID) -> bool:
         return self.original_path(evidence_id).is_file()
@@ -28,10 +34,10 @@ class LocalEvidenceStorage:
             f"Original evidence already exists: {evidence_id}"
         )
 
-        if not source_path.is_file():
+        if not source_path.is_file() or source_path.is_symlink():
             raise FileNotFoundError(
-            f"Source evidence not found: {source_path}"
-        )
+                f"Source evidence not found or is not a regular file: {source_path}"
+            )
 
         destination.parent.mkdir(parents=True, exist_ok=True)
 
