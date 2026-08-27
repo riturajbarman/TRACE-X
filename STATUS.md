@@ -109,7 +109,7 @@ requirements before moving into Artifact Extraction.
 - [x] Evidence API tests
 - [x] Test isolation improvements (Unique UUID content generation for evidence hashing isolation)
 
-## Phase 3: Artifact Extraction (MVP) - Complete
+## Phase 3: Artifact Extraction (MVP) — Implementation complete, valid Registry fixture BLOCKED
 
 **Goal:** Implement safe execution boundary for parsers and extract raw data from evidence.
 
@@ -119,10 +119,17 @@ requirements before moving into Artifact Extraction.
   - [x] Filesystem Metadata (`rglob`, `os.stat`).
   - [x] Windows Event Logs (`python-evtx`).
   - [x] Windows Registry (`regipy`).
-- [x] Implement `SandboxedExecution` wrapper (timeout, memory limit).
+- [x] Implement `SandboxedExecution` wrapper (process isolation, timeout).
+  - Parser executes in a separate spawned child process (not the FastAPI process).
+  - Timeout enforced via `process.join(timeout)` + `process.terminate()` — kills only the worker.
+  - Filesystem containment: input path resolved and validated against evidence root before spawning.
+  - Structured result boundary: only a plain dict crosses the process boundary.
+  - **NOT implemented:** CPU limits, memory limits, network isolation, privilege dropping, container/cgroup isolation.
 - [x] Implement `ExtractionService`.
-- [x] Implement `/evidence/{id}/extract` endpoint.
-- [x] Write parser and service tests. (Unique UUID content generation for evidence hashing isolation)
+- [x] Implement `/evidence/{id}/extract` endpoint (with explicit Pydantic response schema).
+- [x] Write parser and service tests.
+- [x] EVTX real fixture success path proven — real `python-evtx` parses `tests/fixtures/sample.evtx` (30 MB, 62,031 records; extraction capped at 1,000).
+- [ ] Registry valid fixture — **BLOCKED**: `tests/fixtures/sample_registry.dat` is a 14-byte stub (`"404: Not Found"`), not a valid Windows Registry hive. `test_registry_parser_valid_real_fixture` is `xfail(strict=True)`. Must remain blocked until a genuine `.hiv`/`.dat` fixture is committed.
 
 ## Evidence Management
 

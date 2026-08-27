@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.domain.evidence.models import EvidenceStatus
 from app.domain.evidence.schemas import EvidenceCreate, EvidenceResponse
+from app.domain.artifact.schemas import ArtifactResultResponse
 from app.domain.evidence.service import EvidenceService
 
 
@@ -55,7 +56,7 @@ def ingest_evidence(
 
             total_size = 0
             from app.core.config import MAX_UPLOAD_SIZE_BYTES
-            
+
             while chunk := file.file.read(1024 * 1024):
                 total_size += len(chunk)
                 if total_size > MAX_UPLOAD_SIZE_BYTES:
@@ -183,6 +184,7 @@ def verify_evidence_integrity(
 
 @router.post(
     "/{evidence_id}/extract",
+    response_model=list[ArtifactResultResponse],
 )
 def extract_artifacts(
     evidence_id: UUID,
@@ -191,7 +193,7 @@ def extract_artifacts(
 ):
     from app.domain.artifact.service import ExtractionService
     service = ExtractionService(db)
-    
+
     try:
         results = service.extract(evidence_id, artifact_types)
         return results

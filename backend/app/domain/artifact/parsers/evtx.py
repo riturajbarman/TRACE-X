@@ -29,7 +29,7 @@ class EvtxParser(BaseParser):
 
     def _parse(self, input_path: Path, evidence_id: UUID) -> ArtifactResult:
         data = []
-        
+
         # Verify it looks like an EVTX file
         with open(input_path, "rb") as f:
             header = f.read(8)
@@ -45,7 +45,7 @@ class EvtxParser(BaseParser):
                     extracted_at=datetime.now(timezone.utc),
                     error_message="Not a valid EVTX file (invalid header).",
                 )
-        
+
         try:
             with Evtx(str(input_path)) as log:
                 # Iterate through records and convert to simple dicts for MVP
@@ -59,7 +59,7 @@ class EvtxParser(BaseParser):
                     })
         except Exception as exc:
             # If we partially parsed something before failure, we could return PARTIAL,
-            # but python-evtx usually raises on open if the file is corrupt, 
+            # but python-evtx usually raises on open if the file is corrupt,
             # or during iteration. If data is not empty, it's a partial success.
             status = ExtractionStatus.PARTIAL if data else ExtractionStatus.FAILED
             return ArtifactResult(

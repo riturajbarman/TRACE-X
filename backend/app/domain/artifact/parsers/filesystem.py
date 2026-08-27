@@ -25,7 +25,7 @@ class FilesystemMetadataParser(BaseParser):
 
     def _parse(self, input_path: Path, evidence_id: UUID) -> ArtifactResult:
         data = []
-        
+
         def process_path(p: Path):
             stat = p.stat()
             return {

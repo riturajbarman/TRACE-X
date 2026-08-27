@@ -28,7 +28,7 @@ class RegistryParser(BaseParser):
 
     def _parse(self, input_path: Path, evidence_id: UUID) -> ArtifactResult:
         data = []
-        
+
         # Verify it looks like a Registry Hive (signature 'regf' at start)
         with open(input_path, "rb") as f:
             header = f.read(4)
@@ -47,11 +47,11 @@ class RegistryParser(BaseParser):
 
         try:
             hive = RegistryHive(str(input_path))
-            
+
             # Recurse over all subkeys
             for entry in hive.recurse_subkeys(as_json=True):
                 data.append(entry)
-                
+
         except Exception as exc:
             status = ExtractionStatus.PARTIAL if data else ExtractionStatus.FAILED
             return ArtifactResult(
