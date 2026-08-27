@@ -56,12 +56,15 @@ requirements before moving into Artifact Extraction.
 | Backend | 🟢 Active | FastAPI backend operational |
 | Frontend | ⬜ Not Started | Next.js not yet implemented |
 | Database | 🟢 Active | PostgreSQL + Alembic operational |
-| Evidence management | ✅ Complete | Phase 2 is complete. |
-| Forensic engine | ⬜ Not Started | Artifact extraction not started |
-| Detection engine | ⬜ Not Started | Not started |
-| ML engine | ⬜ Not Started | Not started |
-| RAG | ⬜ Not Started | Not started |
-| AI assistant | ⬜ Not Started | Not started |
+| Phase | Status | Focus |
+|-------|--------|-------|
+| 1 | Complete | Core Architecture, Domain Models, Persistence |
+| 2 | Complete | API, Evidence Management, Security Boundaries |
+| 3 | Complete | Artifact Extraction (MVP Parsers, Sandbox) |
+| 4 | Not Started | Event Store & Normalization |
+| 5 | Not Started | Detection & Timeline |
+| 6 | Not Started | RAG & AI Assistance |
+| 7 | Not Started | UI & Reporting |
 | Testing infrastructure | 🟢 Active | Backend tests operational |
 | CI/CD | ⬜ Not Started | Not yet implemented |
 | Benchmarking | ⬜ Not Started | Not yet implemented |
@@ -105,6 +108,28 @@ requirements before moving into Artifact Extraction.
 - [x] Pytest test execution
 - [x] Evidence API tests
 - [x] Test isolation improvements (Unique UUID content generation for evidence hashing isolation)
+
+## Phase 3: Artifact Extraction (MVP) — Implementation complete, valid Registry fixture BLOCKED
+
+**Goal:** Implement safe execution boundary for parsers and extract raw data from evidence.
+
+- [x] Create `BaseParser` interface.
+- [x] Create `ParserRegistry`.
+- [x] Implement MVP parsers:
+  - [x] Filesystem Metadata (`rglob`, `os.stat`).
+  - [x] Windows Event Logs (`python-evtx`).
+  - [x] Windows Registry (`regipy`).
+- [x] Implement `SandboxedExecution` wrapper (process isolation, timeout).
+  - Parser executes in a separate spawned child process (not the FastAPI process).
+  - Timeout enforced via `process.join(timeout)` + `process.terminate()` — kills only the worker.
+  - Filesystem containment: input path resolved and validated against evidence root before spawning.
+  - Structured result boundary: only a plain dict crosses the process boundary.
+  - **NOT implemented:** CPU limits, memory limits, network isolation, privilege dropping, container/cgroup isolation.
+- [x] Implement `ExtractionService`.
+- [x] Implement `/evidence/{id}/extract` endpoint (with explicit Pydantic response schema).
+- [x] Write parser and service tests.
+- [x] EVTX real fixture success path proven — real `python-evtx` parses `tests/fixtures/sample.evtx` (30 MB, 62,031 records; extraction capped at 1,000).
+- [ ] Registry valid fixture — **BLOCKED**: `tests/fixtures/sample_registry.dat` is a 14-byte stub (`"404: Not Found"`), not a valid Windows Registry hive. `test_registry_parser_valid_real_fixture` is `xfail(strict=True)`. Must remain blocked until a genuine `.hiv`/`.dat` fixture is committed.
 
 ## Evidence Management
 
