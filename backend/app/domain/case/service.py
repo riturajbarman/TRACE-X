@@ -4,11 +4,13 @@ from sqlalchemy.orm import Session
 
 from app.domain.case.models import Case, CaseStatus
 from app.domain.case.repository import CaseRepository
+from app.domain.audit.service import AuditService
 
 
 class CaseService:
     def __init__(self, db: Session):
         self.repository = CaseRepository(db)
+        self.audit_service = AuditService(db)
 
     def create(
         self,
@@ -23,7 +25,17 @@ class CaseService:
             status=CaseStatus.OPEN,
         )
 
-        return self.repository.create(case)
+        created_case = self.repository.create(case)
+        
+        self.audit_service.record_event(
+            action="CASE_CREATED",
+            entity_type="case",
+            entity_id=created_case.id,
+            outcome="SUCCESS",
+            details={"title": created_case.title}
+        )
+        
+        return created_case
 
     def get_by_id(self, case_id: UUID) -> Case | None:
         return self.repository.get_by_id(case_id)
@@ -48,9 +60,40 @@ class CaseService:
         if case is None:
             return None
 
-        if case.status == new_status:
-            return case
+        allowed_transitions = {
+            CaseStatus.OPEN: {CaseStatus.CLOSED},
+            CaseStatus.CLOSED: {CaseStatus.OPEN},
+        }
 
+        if new_status not in allowed_transitions[case.status]:
+            raise ValueError(
+                f"Invalid case status transition: "
+                f"{case.status} -> {new_status}"
+            )
+
+        old_status = case.status
         case.status = new_status
 
-        return self.repository.update(case)
+        updated_case = self.repository.update(case)
+        
+        self.audit_service.record_event(
+            action="CASE_STATUS_CHANGED",
+            entity_type="case",
+            entity_id=updated_case.id,
+            outcome="SUCCESS",
+            details={"old_status": old_status, "new_status": new_status}
+        )
+        
+        return updated_case
+
+    def list_evidence(
+        self,
+        case_id: UUID,
+        limit: int,
+        offset: int,
+    ):
+        return self.repository.list_evidence_by_case(
+            case_id=case_id,
+            limit=limit,
+            offset=offset,
+        )

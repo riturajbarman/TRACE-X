@@ -26,30 +26,6 @@ router = APIRouter(
 )
 
 
-@router.post(
-    "",
-    response_model=EvidenceResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_evidence(
-    data: EvidenceCreate,
-    db: Session = Depends(get_db),
-):
-    service = EvidenceService(db)
-
-    try:
-        return service.create(data)
-    except ValueError as exc:
-        if str(exc) == "Case not found":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Case not found",
-            ) from exc
-
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
 
 
 @router.post(
@@ -77,8 +53,20 @@ def ingest_evidence(
         ) as temporary_file:
             temporary_path = Path(temporary_file.name)
 
+            total_size = 0
+            from app.core.config import MAX_UPLOAD_SIZE_BYTES
+            
             while chunk := file.file.read(1024 * 1024):
+                total_size += len(chunk)
+                if total_size > MAX_UPLOAD_SIZE_BYTES:
+                    temporary_file.close()
+                    temporary_path.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="Upload exceeds maximum allowed size",
+                    )
                 temporary_file.write(chunk)
+
 
         try:
             return service.ingest(
@@ -146,10 +134,6 @@ def get_evidence(
     return evidence
 
 
-@router.patch(
-    "/{evidence_id}/status",
-    response_model=EvidenceResponse,
-)
 @router.patch(
     "/{evidence_id}/status",
     response_model=EvidenceResponse,

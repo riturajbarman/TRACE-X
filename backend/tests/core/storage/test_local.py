@@ -1,6 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
+import hashlib
 import pytest
 
 from app.core.storage.local import LocalEvidenceStorage
@@ -125,3 +126,39 @@ def test_delete_original(tmp_path: Path):
     storage.delete_original(evidence_id)
 
     assert storage.exists(evidence_id) is False
+
+
+def test_verify_integrity_success(tmp_path: Path):
+    storage = LocalEvidenceStorage(str(tmp_path / "evidence-data"))
+    source = tmp_path / "upload.bin"
+    content = b"TRACE-X test evidence"
+    source.write_bytes(content)
+    evidence_id = uuid4()
+    storage.save_original(evidence_id, source)
+    
+    expected_hash = hashlib.sha256(content).hexdigest()
+    assert storage.verify_integrity(evidence_id, expected_hash) is True
+
+
+def test_verify_integrity_failure(tmp_path: Path):
+    storage = LocalEvidenceStorage(str(tmp_path / "evidence-data"))
+    source = tmp_path / "upload.bin"
+    content = b"TRACE-X test evidence"
+    source.write_bytes(content)
+    evidence_id = uuid4()
+    storage.save_original(evidence_id, source)
+    
+    path = storage.original_path(evidence_id)
+    path.chmod(0o644)
+    path.write_bytes(b"modified")
+    
+    expected_hash = hashlib.sha256(content).hexdigest()
+    assert storage.verify_integrity(evidence_id, expected_hash) is False
+
+
+def test_verify_integrity_missing(tmp_path: Path):
+    storage = LocalEvidenceStorage(str(tmp_path / "evidence-data"))
+    evidence_id = uuid4()
+    
+    with pytest.raises(FileNotFoundError):
+        storage.verify_integrity(evidence_id, "expected")

@@ -37,3 +37,20 @@ class CaseRepository:
         )
 
         return list(self.db.scalars(statement).all())
+
+    def list_evidence_by_case(
+        self,
+        case_id: UUID,
+        limit: int,
+        offset: int,
+    ):
+        from app.domain.evidence.models import Evidence
+        statement = (
+            select(Evidence)
+            .where(Evidence.case_id == case_id)
+            .order_by(Evidence.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return list(self.db.scalars(statement).all())

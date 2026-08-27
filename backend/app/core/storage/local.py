@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 from shutil import copyfile
 from uuid import UUID
@@ -61,3 +62,16 @@ class LocalEvidenceStorage:
 
         if parent.exists() and not any(parent.iterdir()):
             parent.rmdir()
+
+    def verify_integrity(self, evidence_id: UUID, expected_sha256: str) -> bool:
+        path = self.original_path(evidence_id)
+
+        if not path.is_file():
+            raise FileNotFoundError(f"Original evidence not found: {evidence_id}")
+
+        sha256 = hashlib.sha256()
+        with path.open("rb") as f:
+            while chunk := f.read(1024 * 1024):
+                sha256.update(chunk)
+
+        return sha256.hexdigest() == expected_sha256

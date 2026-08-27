@@ -23,6 +23,7 @@ if config.config_file_name is not None:
 from app.core.database import Base
 from app.domain.case.models import Case
 from app.domain.evidence.models import Evidence
+from app.domain.audit.models import AuditEvent
 
 
 target_metadata = Base.metadata
