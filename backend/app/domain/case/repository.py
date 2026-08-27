@@ -36,6 +36,24 @@ class CaseRepository:
 
         return list(self.db.scalars(statement).all())
 
+    def get_summary_counts(self, case_id: UUID) -> dict:
+        from sqlalchemy import func
+        from app.domain.evidence.models import Evidence
+        from app.domain.event.models import Event
+
+        evidence_count = self.db.scalar(
+            select(func.count(Evidence.id)).where(Evidence.case_id == case_id)
+        ) or 0
+
+        event_count = self.db.scalar(
+            select(func.count(Event.id)).where(Event.case_id == case_id)
+        ) or 0
+
+        return {
+            "evidence_count": evidence_count,
+            "event_count": event_count,
+        }
+
     def list_evidence_by_case(
         self,
         case_id: UUID,
@@ -46,7 +64,7 @@ class CaseRepository:
         statement = (
             select(Evidence)
             .where(Evidence.case_id == case_id)
-            .order_by(Evidence.created_at.desc())
+            .order_by(Evidence.created_at.desc(), Evidence.id.asc())
             .limit(limit)
             .offset(offset)
         )

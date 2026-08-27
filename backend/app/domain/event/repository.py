@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Sequence
 
 from sqlalchemy import select
@@ -36,14 +37,28 @@ class EventRepository:
         )
         return self.session.execute(stmt).scalars().all()
 
-    def list_by_case(self, case_id: uuid.UUID, skip: int = 0, limit: int = 100) -> Sequence[Event]:
-        stmt = (
-            select(Event)
-            .where(Event.case_id == case_id)
-            .order_by(Event.timestamp.asc(), Event.id.asc())
-            .offset(skip)
-            .limit(limit)
-        )
+    def list_by_case(
+        self,
+        case_id: uuid.UUID,
+        skip: int = 0,
+        limit: int = 100,
+        event_type: str | None = None,
+        source: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> Sequence[Event]:
+        stmt = select(Event).where(Event.case_id == case_id)
+
+        if event_type:
+            stmt = stmt.where(Event.event_type == event_type)
+        if source:
+            stmt = stmt.where(Event.source == source)
+        if start_time:
+            stmt = stmt.where(Event.timestamp >= start_time)
+        if end_time:
+            stmt = stmt.where(Event.timestamp <= end_time)
+
+        stmt = stmt.order_by(Event.timestamp.asc(), Event.id.asc()).offset(skip).limit(limit)
         return self.session.execute(stmt).scalars().all()
 
     def list_by_artifact(self, artifact_id: uuid.UUID, skip: int = 0, limit: int = 100) -> Sequence[Event]:

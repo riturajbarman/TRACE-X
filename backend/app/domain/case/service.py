@@ -47,6 +47,28 @@ class CaseService:
     def get_by_id(self, case_id: UUID) -> Case | None:
         return self.repository.get_by_id(case_id)
 
+    def get_summary(self, case_id: UUID) -> dict | None:
+        case = self.get_by_id(case_id)
+        if not case:
+            return None
+
+        counts = self.repository.get_summary_counts(case_id)
+
+        # Serialize the case to dict and merge counts
+        # We'll use the ORM attributes manually since Pydantic does this in the API layer,
+        # but the API layer expects an object or dict.
+        return {
+            "id": case.id,
+            "title": case.title,
+            "description": case.description,
+            "status": case.status,
+            "created_by": case.created_by,
+            "created_at": case.created_at,
+            "updated_at": case.updated_at,
+            "evidence_count": counts["evidence_count"],
+            "event_count": counts["event_count"],
+        }
+
     def list(
         self,
         limit: int,

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Sequence
 
 from sqlalchemy.orm import Session
@@ -54,11 +55,31 @@ class EventService:
         self.session.commit()
         return events_to_create
 
-    def list_by_case(self, case_id: uuid.UUID, skip: int = 0, limit: int = 100) -> Sequence[Event]:
-        return self.repository.list_by_case(case_id, skip=skip, limit=limit)
+    def list_by_case(
+        self,
+        case_id: uuid.UUID,
+        skip: int = 0,
+        limit: int = 100,
+        event_type: str | None = None,
+        source: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> Sequence[Event]:
+        return self.repository.list_by_case(
+            case_id,
+            skip=skip,
+            limit=limit,
+            event_type=event_type,
+            source=source,
+            start_time=start_time,
+            end_time=end_time,
+        )
 
     def list_by_evidence(self, evidence_id: uuid.UUID, skip: int = 0, limit: int = 100) -> Sequence[Event]:
         return self.repository.list_by_evidence(evidence_id, skip=skip, limit=limit)
 
     def list_by_artifact(self, artifact_id: uuid.UUID, skip: int = 0, limit: int = 100) -> Sequence[Event]:
         return self.repository.list_by_artifact(artifact_id, skip=skip, limit=limit)
+
+    def get_by_id(self, event_id: uuid.UUID) -> Event | None:
+        return self.repository.get_by_id(event_id)
