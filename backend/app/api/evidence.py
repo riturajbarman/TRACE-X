@@ -1,12 +1,24 @@
+import tempfile
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    Query,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.domain.evidence.models import EvidenceStatus
 from app.domain.evidence.schemas import EvidenceCreate, EvidenceResponse
 from app.domain.evidence.service import EvidenceService
+
 
 router = APIRouter(
     prefix="/evidence",
@@ -38,6 +50,62 @@ def create_evidence(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
+
+
+@router.post(
+    "/ingest",
+    response_model=EvidenceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def ingest_evidence(
+    case_id: UUID = Form(...),
+    name: str = Form(...),
+    description: str | None = Form(None),
+    source: str | None = Form(None),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    service = EvidenceService(db)
+
+    suffix = Path(file.filename or "").suffix
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            suffix=suffix,
+            delete=False,
+        ) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+
+            while chunk := file.file.read(1024 * 1024):
+                temporary_file.write(chunk)
+
+        try:
+            return service.ingest(
+                case_id=case_id,
+                name=name,
+                source_path=temporary_path,
+                description=description,
+                source=source,
+            )
+
+        except ValueError as exc:
+            if str(exc) == "Case not found":
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Case not found",
+                ) from exc
+
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(exc),
+            ) from exc
+
+    finally:
+        if "temporary_path" in locals():
+            temporary_path.unlink(missing_ok=True)
+
+        file.file.close()
 
 
 @router.get(
@@ -78,6 +146,10 @@ def get_evidence(
     return evidence
 
 
+@router.patch(
+    "/{evidence_id}/status",
+    response_model=EvidenceResponse,
+)
 @router.patch(
     "/{evidence_id}/status",
     response_model=EvidenceResponse,
