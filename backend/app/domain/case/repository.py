@@ -12,13 +12,11 @@ class CaseRepository:
 
     def create(self, case: Case) -> Case:
         self.db.add(case)
-        self.db.commit()
-        self.db.refresh(case)
+        self.db.flush()
         return case
 
     def update(self, case: Case) -> Case:
-        self.db.commit()
-        self.db.refresh(case)
+        self.db.flush()
         return case
 
     def get_by_id(self, case_id: UUID) -> Case | None:

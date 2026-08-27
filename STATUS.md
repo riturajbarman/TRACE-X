@@ -125,6 +125,10 @@ requirements before moving into Artifact Extraction.
 - [x] Database migration applied successfully
 - [x] Tests passing
 - [x] Audit events are recorded (Audit logging for Case creation, Case status changes, Evidence ingestion, Evidence status changes)
+- [x] Audit/business transaction atomicity (single commit per use case, repositories use flush)
+- [x] Integrity verification wired into EvidenceService and exposed via POST /evidence/{id}/verify API
+- [x] Audit-write failure regression tests (Case and Evidence paths)
+- [x] Integrity verification API tests (valid, modified, missing)
 
 ## Remaining Phase 2 Gaps
 - Database isolation for tests is still incomplete (tests share the same database; handled currently by generating unique UUIDs for test content to bypass SHA-256 constraints, but not truly transactional).
@@ -134,6 +138,6 @@ requirements before moving into Artifact Extraction.
 Latest backend test result:
 
 ```text
-50 passed
+55 passed
 2 warnings
 ```

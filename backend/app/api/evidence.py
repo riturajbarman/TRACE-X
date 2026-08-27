@@ -163,3 +163,20 @@ def update_evidence_status(
         )
 
     return evidence
+
+@router.post(
+    "/{evidence_id}/verify",
+)
+def verify_evidence_integrity(
+    evidence_id: UUID,
+    db: Session = Depends(get_db),
+):
+    service = EvidenceService(db)
+    try:
+        integrity_status = service.verify_integrity(evidence_id)
+        return {"integrity_status": integrity_status}
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        )

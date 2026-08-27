@@ -1,8 +1,11 @@
 import hashlib
-from uuid import uuid4
+from pathlib import Path
+from uuid import UUID, uuid4
 from unittest.mock import patch
+from fastapi import status
 from fastapi.testclient import TestClient
 from app.main import app
+from app.core.storage.local import LocalEvidenceStorage
 
 client = TestClient(app)
 
@@ -23,7 +26,7 @@ def ingest_test_evidence(case_id=None, content=None, name="test-evidence"):
         case_id = create_test_case()
     if content is None:
         content = f"TRACE-X forensic evidence test {uuid4()}".encode()
-    
+
     response = client.post(
         "/evidence/ingest",
         data={
@@ -63,7 +66,7 @@ def test_invalid_evidence_id():
 def test_duplicate_sha256():
     case_id = create_test_case()
     content = f"duplicate test content {uuid4()}".encode()
-    
+
     first_response = client.post(
         "/evidence/ingest",
         data={"case_id": str(case_id), "name": "first-upload"},
@@ -162,6 +165,92 @@ def test_ingest_nonexistent_case():
     assert response.status_code == 404
     assert response.json()["detail"] == "Case not found"
 
+def test_verify_evidence_integrity_valid(tmp_path: Path, monkeypatch):
+    source = tmp_path / "valid.bin"
+    source.write_bytes(f"TRACE-X valid integrity {uuid4()}".encode())
+
+    # Mock storage
+    storage = LocalEvidenceStorage(str(tmp_path / "evidence-data"))
+    monkeypatch.setattr("app.domain.evidence.service.get_evidence_storage", lambda: storage)
+
+    case_id = create_test_case()
+
+    response = client.post(
+        "/evidence/ingest",
+        data={
+            "case_id": str(case_id),
+            "name": "valid-evidence",
+            "description": "Integrity test",
+            "source": "pytest",
+        },
+        files={"file": ("valid.bin", source.open("rb"), "application/octet-stream")},
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    evidence_id = response.json()["id"]
+
+    verify_response = client.post(f"/evidence/{evidence_id}/verify")
+    assert verify_response.status_code == status.HTTP_200_OK
+    assert verify_response.json()["integrity_status"] == "valid"
+
+def test_verify_evidence_integrity_modified(tmp_path: Path, monkeypatch):
+    source = tmp_path / "modified.bin"
+    source.write_bytes(f"TRACE-X mod integrity {uuid4()}".encode())
+
+    # Mock storage
+    storage = LocalEvidenceStorage(str(tmp_path / "evidence-data"))
+    monkeypatch.setattr("app.domain.evidence.service.get_evidence_storage", lambda: storage)
+
+    case_id = create_test_case()
+
+    response = client.post(
+        "/evidence/ingest",
+        data={
+            "case_id": str(case_id),
+            "name": "mod-evidence",
+        },
+        files={"file": ("modified.bin", source.open("rb"), "application/octet-stream")},
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    evidence_id = response.json()["id"]
+
+    # Modify the original file
+    stored_path = storage.original_path(UUID(evidence_id))
+    stored_path.chmod(0o644)
+    stored_path.write_bytes(b"modified content")
+
+    verify_response = client.post(f"/evidence/{evidence_id}/verify")
+    assert verify_response.status_code == status.HTTP_200_OK
+    assert verify_response.json()["integrity_status"] == "modified"
+
+def test_verify_evidence_integrity_missing(tmp_path: Path, monkeypatch):
+    source = tmp_path / "missing.bin"
+    source.write_bytes(f"TRACE-X missing integrity {uuid4()}".encode())
+
+    # Mock storage
+    storage = LocalEvidenceStorage(str(tmp_path / "evidence-data"))
+    monkeypatch.setattr("app.domain.evidence.service.get_evidence_storage", lambda: storage)
+
+    case_id = create_test_case()
+
+    response = client.post(
+        "/evidence/ingest",
+        data={
+            "case_id": str(case_id),
+            "name": "miss-evidence",
+        },
+        files={"file": ("missing.bin", source.open("rb"), "application/octet-stream")},
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    evidence_id = response.json()["id"]
+
+    # Delete the original file
+    storage.delete_original(UUID(evidence_id))
+
+    verify_response = client.post(f"/evidence/{evidence_id}/verify")
+    assert verify_response.status_code == status.HTTP_200_OK
+    assert verify_response.json()["integrity_status"] == "missing"
+
+
 def test_list_evidence():
     case_id = create_test_case()
     ingest_test_evidence(case_id)
@@ -204,7 +293,7 @@ def test_update_evidence_status_to_ready():
 
     client.patch(f"/evidence/{evidence_id}/status?new_status=PROCESSING")
     response = client.patch(f"/evidence/{evidence_id}/status?new_status=READY")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["case_id"] == case_id
@@ -226,7 +315,7 @@ def test_update_nonexistent_evidence_status():
 
 def test_ingest_exceeds_upload_limit():
     case_id = create_test_case()
-    
+
     with patch("app.core.config.MAX_UPLOAD_SIZE_BYTES", 10):
         content = b"This is larger than 10 bytes"
         response = client.post(

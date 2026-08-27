@@ -7,6 +7,5 @@ class AuditRepository:
 
     def create(self, event: AuditEvent) -> AuditEvent:
         self.db.add(event)
-        self.db.commit()
-        self.db.refresh(event)
+        self.db.flush()
         return event

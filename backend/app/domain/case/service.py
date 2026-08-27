@@ -9,6 +9,7 @@ from app.domain.audit.service import AuditService
 
 class CaseService:
     def __init__(self, db: Session):
+        self.db = db
         self.repository = CaseRepository(db)
         self.audit_service = AuditService(db)
 
@@ -18,24 +19,30 @@ class CaseService:
         description: str | None,
         created_by: str | None,
     ) -> Case:
-        case = Case(
-            title=title,
-            description=description,
-            created_by=created_by,
-            status=CaseStatus.OPEN,
-        )
+        try:
+            case = Case(
+                title=title,
+                description=description,
+                created_by=created_by,
+                status=CaseStatus.OPEN,
+            )
 
-        created_case = self.repository.create(case)
-        
-        self.audit_service.record_event(
-            action="CASE_CREATED",
-            entity_type="case",
-            entity_id=created_case.id,
-            outcome="SUCCESS",
-            details={"title": created_case.title}
-        )
-        
-        return created_case
+            created_case = self.repository.create(case)
+
+            self.audit_service.record_event(
+                action="CASE_CREATED",
+                entity_type="case",
+                entity_id=created_case.id,
+                outcome="SUCCESS",
+                details={"title": created_case.title}
+            )
+
+            self.db.commit()
+            self.db.refresh(created_case)
+            return created_case
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_by_id(self, case_id: UUID) -> Case | None:
         return self.repository.get_by_id(case_id)
@@ -74,17 +81,23 @@ class CaseService:
         old_status = case.status
         case.status = new_status
 
-        updated_case = self.repository.update(case)
-        
-        self.audit_service.record_event(
-            action="CASE_STATUS_CHANGED",
-            entity_type="case",
-            entity_id=updated_case.id,
-            outcome="SUCCESS",
-            details={"old_status": old_status, "new_status": new_status}
-        )
-        
-        return updated_case
+        try:
+            updated_case = self.repository.update(case)
+
+            self.audit_service.record_event(
+                action="CASE_STATUS_CHANGED",
+                entity_type="case",
+                entity_id=updated_case.id,
+                outcome="SUCCESS",
+                details={"old_status": old_status, "new_status": new_status}
+            )
+
+            self.db.commit()
+            self.db.refresh(updated_case)
+            return updated_case
+        except Exception:
+            self.db.rollback()
+            raise
 
     def list_evidence(
         self,
