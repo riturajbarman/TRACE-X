@@ -24,6 +24,7 @@ from app.core.database import Base
 from app.domain.case.models import Case
 from app.domain.evidence.models import Evidence
 from app.domain.audit.models import AuditEvent
+from app.domain.event.models import Event
 
 
 target_metadata = Base.metadata
