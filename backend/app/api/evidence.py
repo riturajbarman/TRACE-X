@@ -180,3 +180,28 @@ def verify_evidence_integrity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         )
+
+@router.post(
+    "/{evidence_id}/extract",
+)
+def extract_artifacts(
+    evidence_id: UUID,
+    artifact_types: list[str] = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    from app.domain.artifact.service import ExtractionService
+    service = ExtractionService(db)
+    
+    try:
+        results = service.extract(evidence_id, artifact_types)
+        return results
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        )
