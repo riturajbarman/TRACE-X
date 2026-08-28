@@ -216,3 +216,32 @@ def get_case_risk(
 
     service = RiskService(db)
     return service.calculate_case_risk(case_id)
+
+@router.get(
+    "/{case_id}/report",
+    summary="Get case report",
+)
+def get_case_report(
+    case_id: UUID,
+    format: str = Query("json", description="Format of the report (only json supported currently)"),
+    db: Session = Depends(get_db),
+):
+    """
+    Download a comprehensive report for the case.
+    """
+    from app.domain.report.service import ReportService
+    service = ReportService(db)
+
+    try:
+        report = service.generate_json_report(case_id)
+        if format.lower() != "json":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only JSON format is currently supported",
+            )
+        return report
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        )
