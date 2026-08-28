@@ -96,8 +96,8 @@ class ProcessingService:
                 self.session.add_all(detections_to_create)
                 self.session.commit()
 
-            # 6. Mark Complete
-            self.evidence_service.update_status(evidence_id, EvidenceStatus.COMPLETED)
+            # 6. Mark Ready
+            self.evidence_service.update_status(evidence_id, EvidenceStatus.READY)
 
             return {
                 "status": "success",

@@ -53,3 +53,23 @@ def test_process_evidence_no_file(db_session, tmp_path):
     resp = client.post(f"/evidence/{evidence.id}/process")
     assert resp.status_code == 500
     assert "Original evidence file missing" in resp.json()["detail"]
+
+    # Verify status changed to FAILED
+    db_session.refresh(evidence)
+    assert evidence.status.value == "FAILED"
+
+def test_process_evidence_success(db_session):
+    from tests.test_evidence import ingest_test_evidence
+
+    # Use ingest_test_evidence to properly create evidence with a real backing file
+    # This ensures extraction doesn't crash on missing file
+    data = ingest_test_evidence()
+    evidence_id = data["id"]
+
+    resp = client.post(f"/evidence/{evidence_id}/process")
+    assert resp.status_code == 200
+
+    # Verify processing completed successfully and transitioned to READY
+    # We must fetch directly from DB to confirm status
+    evidence = db_session.get(Evidence, evidence_id)
+    assert evidence.status.value == "READY"
