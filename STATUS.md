@@ -2,9 +2,9 @@
 # TRACE-X Project Status
 
 **Version:** 0.1
-**Last Updated:** 2026-08-27
-**Current Phase:** Phase 2 — Evidence Management
-**Overall Status:** Phase 2 COMPLETE
+**Last Updated:** 2026-08-28
+**Current Phase:** Phase 8 — Correlation Engine
+**Overall Status:** Phase 8 COMPLETE
 
 ---
 
@@ -61,10 +61,12 @@ requirements before moving into Artifact Extraction.
 | 1 | Complete | Core Architecture, Domain Models, Persistence |
 | 2 | Complete | API, Evidence Management, Security Boundaries |
 | 3 | Complete | Artifact Extraction (MVP Parsers, Sandbox) |
-| 4 | Not Started | Event Store & Normalization |
-| 5 | Not Started | Detection & Timeline |
-| 6 | Not Started | RAG & AI Assistance |
-| 7 | Not Started | UI & Reporting |
+| 4 | Complete | Event Store & Normalization |
+| 5 | Complete | Detection Engine, IOC, Risk Scoring |
+| 6 | Complete | Timeline, Audit, Deterministic Risk |
+| 7 | Complete | MVP Integration, Frontend UI, CORS, Processing Pipeline |
+| 8 | Complete | Correlation Engine (shared-entity, time-window, provenance) |
+| 9 | Not Started | ML / Anomaly Detection |
 | Testing infrastructure | 🟢 Active | Backend tests operational |
 | CI/CD | ⬜ Not Started | Not yet implemented |
 | Benchmarking | ⬜ Not Started | Not yet implemented |
@@ -163,6 +165,5 @@ requirements before moving into Artifact Extraction.
 Latest backend test result:
 
 ```text
-55 passed
-2 warnings
+159 passed, 1 xfailed, 2 warnings
 ```

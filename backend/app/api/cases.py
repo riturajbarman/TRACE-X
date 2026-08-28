@@ -13,6 +13,8 @@ from app.domain.case.schemas import (
     CaseSummaryResponse,
 )
 from app.domain.case.service import CaseService
+from app.domain.correlation.schemas import CorrelationGroupResponse, CorrelationResponse
+from app.domain.correlation.service import CorrelationService
 from app.domain.detection.schemas import RiskResponse
 from app.domain.detection.service import RiskService
 from app.domain.evidence.schemas import EvidenceResponse
@@ -245,3 +247,53 @@ def get_case_report(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         )
+
+
+@router.post(
+    "/{case_id}/correlate",
+    response_model=CorrelationResponse,
+    summary="Run correlation engine for a case",
+)
+def correlate_case(
+    case_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """
+    Run the Phase 8 deterministic correlation engine against all events
+    in the case.
+
+    Returns correlation groups — each group contains related events and
+    the explanation (reason) for the relationship.  Results are persisted
+    as Incidents in the database and are idempotent: re-running replaces
+    any previous AUTO_CORRELATED Incidents.
+    """
+    case_service = CaseService(db)
+    if case_service.get_by_id(case_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Case not found",
+        )
+
+    service = CorrelationService(db)
+    groups = service.correlate_case(case_id)
+
+    group_responses = [
+        CorrelationGroupResponse(
+            group_id=g.group_id,
+            title=g.title,
+            reason=g.reason,
+            severity=g.severity,
+            confidence=g.confidence,
+            event_count=len(g.events),
+            detection_count=len(g.detections),
+            events=g.events,
+            detections=g.detections,
+        )
+        for g in groups
+    ]
+
+    return CorrelationResponse(
+        case_id=case_id,
+        group_count=len(group_responses),
+        groups=group_responses,
+    )
