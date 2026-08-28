@@ -25,6 +25,7 @@ from app.domain.case.models import Case
 from app.domain.evidence.models import Evidence
 from app.domain.audit.models import AuditEvent
 from app.domain.event.models import Event
+from app.domain.detection.models import Detection, IOC, Incident
 
 
 target_metadata = Base.metadata

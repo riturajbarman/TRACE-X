@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.event.models import Event
+from app.domain.detection.models import Detection, incident_events
 
 
 class EventRepository:
@@ -46,6 +47,8 @@ class EventRepository:
         source: str | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
+        severity: str | None = None,
+        incident_id: uuid.UUID | None = None,
     ) -> Sequence[Event]:
         stmt = select(Event).where(Event.case_id == case_id)
 
@@ -57,6 +60,13 @@ class EventRepository:
             stmt = stmt.where(Event.timestamp >= start_time)
         if end_time:
             stmt = stmt.where(Event.timestamp <= end_time)
+        if severity:
+            stmt = stmt.join(Detection, Event.id == Detection.event_id).where(Detection.severity == severity)
+        if incident_id:
+            stmt = stmt.join(incident_events, Event.id == incident_events.c.event_id).where(incident_events.c.incident_id == incident_id)
+
+        if severity or incident_id:
+            stmt = stmt.distinct()
 
         stmt = stmt.order_by(Event.timestamp.asc(), Event.id.asc()).offset(skip).limit(limit)
         return self.session.execute(stmt).scalars().all()

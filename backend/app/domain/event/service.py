@@ -64,6 +64,8 @@ class EventService:
         source: str | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
+        severity: str | None = None,
+        incident_id: uuid.UUID | None = None,
     ) -> Sequence[Event]:
         return self.repository.list_by_case(
             case_id,
@@ -73,6 +75,8 @@ class EventService:
             source=source,
             start_time=start_time,
             end_time=end_time,
+            severity=severity,
+            incident_id=incident_id,
         )
 
     def list_by_evidence(self, evidence_id: uuid.UUID, skip: int = 0, limit: int = 100) -> Sequence[Event]:

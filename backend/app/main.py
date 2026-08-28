@@ -7,6 +7,7 @@ from app.api.events import router as events_router
 from app.domain.case.models import Case
 from app.domain.evidence.models import Evidence
 from app.domain.event.models import Event
+from app.domain.detection.models import IOC, Detection, Incident
 
 
 app = FastAPI(
