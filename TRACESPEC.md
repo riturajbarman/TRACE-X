@@ -1437,20 +1437,11 @@ Current specification version:
 
 **0.2**
 
-Current development state:
+Current state:
+Phase 9 — ML / Anomaly Detection (Complete)
 
-**Pre-development / Architecture phase**
+Completed:
+Phases 1 through 9
 
-Application implementation has not started.
-
-The next engineering steps are:
-
-1. Finalize TRACESPEC.
-2. Create BRAIN.md.
-3. Create AGENTS.md.
-4. Create PIPELINE.md.
-5. Create ROADMAP.md.
-6. Create STATUS.md.
-7. Create initial TRACE-X agent skills.
-8. Perform final architecture review.
-9. Begin foundation implementation.
+Next:
+Phase 10 — Investigation Graph (Not Started)

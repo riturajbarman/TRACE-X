@@ -180,6 +180,29 @@ requirements before moving into Artifact Extraction.
 
 ## Validation
 
+### Phase 9 API Smoke Test
+
+**Endpoint:**
+`POST /cases/{case_id}/anomaly-scan`
+
+**Verified:**
+HTTP 200
+
+**Response:**
+```json
+{
+  "case_id": "9178c091-0ae9-4cc4-b1fe-c8d2b203f39e",
+  "model_version": "1.0.0",
+  "anomaly_count": 0,
+  "findings": []
+}
+```
+
+**Case ID:**
+`9178c091-0ae9-4cc4-b1fe-c8d2b203f39e`
+
+*(Note: This is an API smoke test only. Frontend validation is not yet verified.)*
+
 Latest backend test result:
 
 ```text

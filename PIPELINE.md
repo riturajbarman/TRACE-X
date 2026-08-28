@@ -1015,20 +1015,10 @@ impressive.
 
 Current state:
 
-**Architecture defined — implementation not started.**
+**Phase 9 ML/Anomaly Detection is complete.**
 
 Current next steps:
 
 ```text
-PIPELINE.md
-     ↓
-ROADMAP.md
-     ↓
-STATUS.md
-     ↓
-Agent Skills
-     ↓
-Architecture review
-     ↓
-Foundation implementation
+Phase 10: Investigation Graph
 ```

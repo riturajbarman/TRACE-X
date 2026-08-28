@@ -513,7 +513,7 @@ Always remember:
 
 Current phase:
 
-**Pre-development / Architecture**
+**Phase 9 — ML / Anomaly Detection (Complete)**
 
 Current specification:
 
@@ -521,7 +521,7 @@ Current specification:
 
 Application code:
 
-**Not started**
+**Implementation of Phases 1 through 9 is complete.**
 
 Current priority:
 

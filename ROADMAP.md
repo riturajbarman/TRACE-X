@@ -1167,22 +1167,20 @@ results and depth of the project.
 
 Current phase:
 
-**Phase 0 — Research & Architecture**
+**Phase 9 — ML / Anomaly Detection (Complete)**
 
 Completed:
 
-- Repository initialized
-- Git configured
-- TRACESPEC v0.2
-- BRAIN.md
-- AGENTS.md
-- PIPELINE.md
+- Phase 1: Core Architecture, Domain Models, Persistence
+- Phase 2: API, Evidence Management, Security Boundaries
+- Phase 3: Artifact Extraction (MVP Parsers, Sandbox)
+- Phase 4: Event Store & Normalization
+- Phase 5: Detection Engine, IOC, Risk Scoring
+- Phase 6: Timeline, Audit, Deterministic Risk
+- Phase 7: MVP Integration, Frontend UI, CORS, Processing Pipeline
+- Phase 8: Correlation Engine
+- Phase 9: ML / Anomaly Detection
 
 Next:
 
-- STATUS.md
-- Initial agent skills
-- Final architecture review
-- Foundation implementation
-
-Application code has not started.
+- Phase 10: Investigation Graph (Not Started)
