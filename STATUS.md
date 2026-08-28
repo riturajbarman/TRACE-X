@@ -3,8 +3,8 @@
 
 **Version:** 0.1
 **Last Updated:** 2026-08-28
-**Current Phase:** Phase 8 — Correlation Engine
-**Overall Status:** Phase 8 COMPLETE
+**Current Phase:** Phase 9 — ML / Anomaly Detection
+**Overall Status:** Phase 9 COMPLETE
 
 ---
 
@@ -66,7 +66,8 @@ requirements before moving into Artifact Extraction.
 | 6 | Complete | Timeline, Audit, Deterministic Risk |
 | 7 | Complete | MVP Integration, Frontend UI, CORS, Processing Pipeline |
 | 8 | Complete | Correlation Engine (shared-entity, time-window, provenance) |
-| 9 | Not Started | ML / Anomaly Detection |
+| 9 | Complete | ML / Anomaly Detection (Isolation Forest, synthetic baseline) |
+| 10 | Not Started | Investigation Graph |
 | Testing infrastructure | 🟢 Active | Backend tests operational |
 | CI/CD | ⬜ Not Started | Not yet implemented |
 | Benchmarking | ⬜ Not Started | Not yet implemented |
@@ -157,6 +158,23 @@ requirements before moving into Artifact Extraction.
 - [x] Audit-write failure regression tests (Case and Evidence paths)
 - [x] Integrity verification API tests (valid, modified, missing)
 
+### Phase 8: Correlation Engine
+- [x] Deterministic event grouping
+- [x] Evidence provenance tracking
+- [x] Time-window + secondary relationship correlation
+
+### Phase 9: ML / Anomaly Detection
+- [x] Isolation Forest model implemented (`scikit-learn`)
+- [x] Synthetic baseline dataset created (`normal_events.json`, `anomalous_events.json`)
+- [x] Deterministic feature extraction (10 features)
+- [x] `FPR` evaluated and bounded (measured FPR: 0.080)
+- [x] Results exposed as `Detection` rows with `detection_type="anomaly"`
+- ⚠️ **Limitation**: Synthetic baseline is not real-world forensic validation. ML is a signal, not proof.
+  - Measured on synthetic dataset: Precision: 0.000, Recall: 0.000, F1: 0.000, FPR: 0.080.
+  - These metrics come strictly from the synthetic fixture and are expected limits of the model type on zero-variance baseline data, not production validation.
+
+---
+
 ## Remaining Phase 2 Gaps
 - Database isolation for tests is still incomplete (tests share the same database; handled currently by generating unique UUIDs for test content to bypass SHA-256 constraints, but not truly transactional).
 
@@ -165,5 +183,5 @@ requirements before moving into Artifact Extraction.
 Latest backend test result:
 
 ```text
-159 passed, 1 xfailed, 2 warnings
+170 passed, 1 xfailed, 2 warnings
 ```

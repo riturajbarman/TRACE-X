@@ -20,7 +20,9 @@ from app.domain.detection.service import RiskService
 from app.domain.evidence.schemas import EvidenceResponse
 from app.domain.event.schemas import EventResponse
 from app.domain.event.service import EventService
-
+from app.domain.event.service import EventService
+from app.domain.anomaly.schemas import AnomalyScanResponse
+from app.domain.anomaly.service import AnomalyService
 
 router = APIRouter(
     prefix="/cases",
@@ -297,3 +299,20 @@ def correlate_case(
         group_count=len(group_responses),
         groups=group_responses,
     )
+
+@router.post(
+    "/{case_id}/anomaly-scan",
+    response_model=AnomalyScanResponse,
+    summary="Run Phase 9 anomaly detection on all events in the case"
+)
+def run_anomaly_scan(case_id: UUID, db: Session = Depends(get_db)):
+    """Run Phase 9 anomaly detection on all events in the case."""
+    case_service = CaseService(db)
+    if case_service.get_by_id(case_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Case not found",
+        )
+
+    service = AnomalyService(db)
+    return service.scan_case(case_id)

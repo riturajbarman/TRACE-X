@@ -1,0 +1,64 @@
+[
+  {
+    "id": "a6df9595-d2c6-4c9b-ab59-d9cb61b6f91d",
+    "event_type": "powershell_encoded",
+    "source": "evtx",
+    "timestamp": "2025-01-01T10:00:00+00:00",
+    "data": {
+      "process_name": "powershell.exe",
+      "command_line": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAEkATwAuAE0AZQBtAG8AcgB5AFMAdAByAGUAYQBtACgAWwBDAG8AbgB2AGUAcgB0AF0AOgA6AEYAcgBvAG0AQgBhAHMAZQA2ADQAUwB0AHIAaQBuAGcAKAAiAEgA..."
+    }
+  },
+  {
+    "id": "a1dbd25e-963d-44dc-a305-edbac3cf644b",
+    "event_type": "powershell_encoded",
+    "source": "evtx",
+    "timestamp": "2025-01-01T15:00:00+00:00",
+    "data": {
+      "process_name": "powershell.exe",
+      "command_line": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAEkATwAuAE0AZQBtAG8AcgB5AFMAdAByAGUAYQBtACgAWwBDAG8AbgB2AGUAcgB0AF0AOgA6AEYAcgBvAG0AQgBhAHMAZQA2ADQAUwB0AHIAaQBuAGcAKAAiAEgA..."
+    }
+  },
+  {
+    "id": "493a33bc-b549-4898-aecb-838f9ac6c68e",
+    "event_type": "powershell_encoded",
+    "source": "evtx",
+    "timestamp": "2025-01-01T20:00:00+00:00",
+    "data": {
+      "process_name": "powershell.exe",
+      "command_line": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAEkATwAuAE0AZQBtAG8AcgB5AFMAdAByAGUAYQBtACgAWwBDAG8AbgB2AGUAcgB0AF0AOgA6AEYAcgBvAG0AQgBhAHMAZQA2ADQAUwB0AHIAaQBuAGcAKAAiAEgA..."
+    }
+  },
+  {
+    "id": "d3b7a747-75cc-4ede-b215-30909e838a2d",
+    "event_type": "powershell_encoded",
+    "source": "evtx",
+    "timestamp": "2025-01-02T01:00:00+00:00",
+    "data": {
+      "process_name": "powershell.exe",
+      "command_line": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAEkATwAuAE0AZQBtAG8AcgB5AFMAdAByAGUAYQBtACgAWwBDAG8AbgB2AGUAcgB0AF0AOgA6AEYAcgBvAG0AQgBhAHMAZQA2ADQAUwB0AHIAaQBuAGcAKAAiAEgA..."
+    }
+  },
+  {
+    "id": "2a7dd299-64d5-4177-8da1-a9ec53f5727f",
+    "event_type": "powershell_encoded",
+    "source": "evtx",
+    "timestamp": "2025-01-02T06:00:00+00:00",
+    "data": {
+      "process_name": "powershell.exe",
+      "command_line": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAEkATwAuAE0AZQBtAG8AcgB5AFMAdAByAGUAYQBtACgAWwBDAG8AbgB2AGUAcgB0AF0AOgA6AEYAcgBvAG0AQgBhAHMAZQA2ADQAUwB0AHIAaQBuAGcAKAAiAEgA..."
+    }
+  },
+  {
+    "id": "ca58b676-7fd8-430b-8b17-42a938a8ef6d",
+    "event_type": "network_connection",
+    "source": "firewall",
+    "timestamp": "2025-01-01T10:00:00+00:00",
+    "data": {
+      "dst_ip": "103.15.2.1",
+      "process_name": "rundll32.exe",
+      "registry_key": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+      "suspicious_flag": "malicious"
+    }
+  }
+]
