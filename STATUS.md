@@ -201,7 +201,18 @@ HTTP 200
 **Case ID:**
 `9178c091-0ae9-4cc4-b1fe-c8d2b203f39e`
 
-*(Note: This is an API smoke test only. Frontend validation is not yet verified.)*
+*(API smoke test verified as above.)*
+
+**Frontend Smoke Test: PASS WITH LIMITATION**
+
+- Frontend loads at `http://localhost:3000` ✅
+- Case list page renders ✅
+- Case detail page returns HTTP 200 ✅
+- Frontend communicates with FastAPI backend (CORS confirmed) ✅
+- Existing case workflow UI exposes: Evidence, Events, Timeline, Risk, Report tabs ✅
+- Risk endpoint verified — returned a valid structured response ✅
+- No unexpected backend errors observed ✅
+- **Limitation:** `POST /cases/{case_id}/anomaly-scan` is **not exposed in the frontend**. Anomaly detection is backend/API-only functionality at this phase. The endpoint was independently smoke-tested via direct API call (HTTP 200 verified). Do not implement anomaly UI — that is Phase 10+ scope.
 
 Latest backend test result:
 
