@@ -207,3 +207,26 @@ def extract_artifacts(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         )
+
+@router.post(
+    "/{evidence_id}/process",
+)
+def process_evidence(
+    evidence_id: UUID,
+    db: Session = Depends(get_db),
+):
+    from app.domain.processing.service import ProcessingService
+    service = ProcessingService(db)
+    try:
+        results = service.process_evidence(evidence_id)
+        return results
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
