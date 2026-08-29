@@ -514,6 +514,7 @@ Always remember:
 Current phase:
 
 **Phase 9 — ML / Anomaly Detection (Complete)**
+**Phase 10 — Investigation Graph (Complete)**
 
 Current specification:
 

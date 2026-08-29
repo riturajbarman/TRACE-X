@@ -3,8 +3,8 @@
 
 **Version:** 0.1
 **Last Updated:** 2026-08-28
-**Current Phase:** Phase 9 — ML / Anomaly Detection
-**Overall Status:** Phase 9 COMPLETE
+**Current Phase:** Phase 10 — Investigation Graph
+**Overall Status:** Phase 10 COMPLETE
 
 ---
 
@@ -67,7 +67,8 @@ requirements before moving into Artifact Extraction.
 | 7 | Complete | MVP Integration, Frontend UI, CORS, Processing Pipeline |
 | 8 | Complete | Correlation Engine (shared-entity, time-window, provenance) |
 | 9 | Complete | ML / Anomaly Detection (Isolation Forest, synthetic baseline) |
-| 10 | Not Started | Investigation Graph |
+| 10 | Complete | Investigation Graph |
+| 11 | Not Started | LLM Integration |
 | Testing infrastructure | 🟢 Active | Backend tests operational |
 | CI/CD | ⬜ Not Started | Not yet implemented |
 | Benchmarking | ⬜ Not Started | Not yet implemented |
@@ -213,6 +214,14 @@ HTTP 200
 - Risk endpoint verified — returned a valid structured response ✅
 - No unexpected backend errors observed ✅
 - **Limitation:** `POST /cases/{case_id}/anomaly-scan` is **not exposed in the frontend**. Anomaly detection is backend/API-only functionality at this phase. The endpoint was independently smoke-tested via direct API call (HTTP 200 verified). Do not implement anomaly UI — that is Phase 10+ scope.
+
+Phase 10 — Investigation Graph (COMPLETE)
+Backend logic to derive provenance, FK, and entity-based edges from events and detections.
+New API endpoint /cases/{case_id}/graph.
+Frontend graph visualization using react-force-graph.
+
+Phase 11 — LLM Integration (NOT STARTED)
+Core RAG functionality and LLM chat.
 
 Latest backend test result:
 

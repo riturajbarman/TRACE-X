@@ -23,6 +23,9 @@ from app.domain.event.service import EventService
 from app.domain.event.service import EventService
 from app.domain.anomaly.schemas import AnomalyScanResponse
 from app.domain.anomaly.service import AnomalyService
+from app.domain.graph.schemas import GraphResponse
+from app.domain.graph.service import GraphService
+
 
 router = APIRouter(
     prefix="/cases",
@@ -316,3 +319,29 @@ def run_anomaly_scan(case_id: UUID, db: Session = Depends(get_db)):
 
     service = AnomalyService(db)
     return service.scan_case(case_id)
+
+@router.get(
+    "/{case_id}/graph",
+    response_model=GraphResponse,
+    summary="Get Phase 10 investigation graph for the case"
+)
+def get_case_graph(
+    case_id: UUID,
+    node_types: list[str] | None = Query(None, description="Filter nodes by type (e.g., event, detection, incident, ioc)"),
+    include_shared_entities: bool = Query(True, description="Whether to compute and include JSONB shared-entity edges"),
+    db: Session = Depends(get_db)
+):
+    """Return the investigation graph representing related entities and events."""
+    case_service = CaseService(db)
+    if case_service.get_by_id(case_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Case not found",
+        )
+    
+    graph_service = GraphService(db)
+    return graph_service.build_graph(
+        case_id=case_id,
+        node_types=node_types,
+        include_shared_entities=include_shared_entities,
+    )

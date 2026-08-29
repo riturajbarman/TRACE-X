@@ -1015,10 +1015,10 @@ impressive.
 
 Current state:
 
-**Phase 9 ML/Anomaly Detection is complete.**
+**Phase 10 Investigation Graph is complete.**
 
 Current next steps:
 
 ```text
-Phase 10: Investigation Graph
+Phase 11: LLM Integration
 ```

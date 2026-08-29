@@ -88,6 +88,32 @@ export interface ProcessResult {
   detections_created: number;
 }
 
+export interface GraphNode {
+  id: string;
+  type: string;
+  label: string;
+  evidence_id: string | null;
+  case_id: string | null;
+  timestamp: string | null;
+  severity: string | null;
+  data: Record<string, unknown>;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  relationship: string;
+  label: string | null;
+}
+
+export interface GraphResponse {
+  case_id: string;
+  node_count: number;
+  edge_count: number;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE_URL}${path}`, {
     ...init,
@@ -117,6 +143,20 @@ export const api = {
     return request<Event[]>(`/cases/${id}/timeline${qs}`);
   },
   getCaseReport: (id: string) => request<Record<string, unknown>>(`/cases/${id}/report`),
+  getCaseGraph: (id: string, params?: { node_types?: string[], include_shared_entities?: boolean }) => {
+    let qs = "";
+    if (params) {
+      const parts: string[] = [];
+      if (params.node_types) {
+        params.node_types.forEach(t => parts.push(`node_types=${t}`));
+      }
+      if (params.include_shared_entities !== undefined) {
+        parts.push(`include_shared_entities=${params.include_shared_entities}`);
+      }
+      if (parts.length > 0) qs = "?" + parts.join("&");
+    }
+    return request<GraphResponse>(`/cases/${id}/graph${qs}`);
+  },
 
   // Evidence
   ingestEvidence: (caseId: string, name: string, file: File, source?: string) => {
