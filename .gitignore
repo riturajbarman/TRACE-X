@@ -54,9 +54,9 @@ docker-data/
 *.sqlite3
 
 # Forensic evidence
-evidence/
+/evidence/
 evidence-data/
-cases/
+/cases/
 *.E01
 *.e01
 *.dd
