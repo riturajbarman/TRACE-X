@@ -41,3 +41,13 @@ ASSISTANT_MAX_IOCS = int(os.getenv("ASSISTANT_MAX_IOCS", "40"))
 ASSISTANT_MAX_INCIDENTS = int(os.getenv("ASSISTANT_MAX_INCIDENTS", "20"))
 ASSISTANT_MAX_GRAPH_NODES = int(os.getenv("ASSISTANT_MAX_GRAPH_NODES", "40"))
 ASSISTANT_MAX_EVIDENCE = int(os.getenv("ASSISTANT_MAX_EVIDENCE", "50"))
+
+# Phase 12 — external knowledge grounding (RAG Knowledge Layer).
+#
+# Deterministic lookup over a versioned, bundled, read-only static
+# snapshot (MITRE ATT&CK) — no vector database, no embeddings, no network
+# access at query time. See app.domain.knowledge for the full design
+# rationale. Bounded and configurable, matching the ASSISTANT_MAX_*
+# convention above — never silently unbounded.
+KNOWLEDGE_MAX_RESULTS = int(os.getenv("KNOWLEDGE_MAX_RESULTS", "5"))
+KNOWLEDGE_MAX_CONTEXT_CHARS = int(os.getenv("KNOWLEDGE_MAX_CONTEXT_CHARS", "4000"))

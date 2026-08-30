@@ -615,7 +615,8 @@ export default function CaseDashboard() {
             The AI Investigation Assistant is <strong>assistive, not authoritative</strong>.
             It only reasons over this case&apos;s already-processed data — it cannot see raw
             evidence and cannot change any TRACE-X record. Every claim below is labeled
-            Observed, Inference, or Recommendation.
+            Observed, Inference, Recommendation, or External Knowledge (e.g. MITRE ATT&amp;CK
+            reference material) — external knowledge is never presented as case evidence.
           </div>
 
           <form onSubmit={askAssistant} className="mb-5 flex gap-3">
@@ -688,25 +689,63 @@ export default function CaseDashboard() {
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Claims</h3>
                   <div className="space-y-2">
                     {assistantAnswer.claims.map((claim, i) => {
+                      // Case-grounded claim types share one visual family (case
+                      // evidence); "external_knowledge" is deliberately a
+                      // different color family (green/teal) so it can never be
+                      // mistaken for case-object provenance at a glance —
+                      // its refs live in knowledge_refs, never in refs.
                       const claimStyle: Record<AssistantClaimType, string> = {
                         observed: "bg-blue-900 text-blue-300 border-blue-700",
                         inference: "bg-purple-900 text-purple-300 border-purple-700",
                         recommendation: "bg-amber-900 text-amber-300 border-amber-700",
+                        external_knowledge: "bg-teal-900 text-teal-300 border-teal-700",
                       };
                       return (
                         <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-3">
                           <div className="flex items-start gap-3">
                             <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded border ${claimStyle[claim.type]}`}>
-                              {claim.type}
+                              {claim.type === "external_knowledge" ? "external knowledge" : claim.type}
                             </span>
                             <div className="min-w-0">
                               <div className="text-sm text-gray-300">{claim.text}</div>
+
+                              {/* Case-object provenance (validated TRACE-X ids) */}
                               {claim.refs.length > 0 && (
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {claim.refs.map((ref) => (
                                     <span key={ref} className="text-[10px] font-mono text-gray-500 bg-gray-950 border border-gray-800 rounded px-1.5 py-0.5">
                                       {ref}
                                     </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* External knowledge citations — visually and
+                                  structurally distinct from case refs above;
+                                  never rendered as a plain id badge, always
+                                  as a labeled source/version card. */}
+                              {claim.knowledge_refs.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {claim.knowledge_refs.map((kr, ki) => (
+                                    <div
+                                      key={ki}
+                                      className="text-[10px] font-mono text-teal-400 bg-teal-950/40 border border-teal-900 rounded px-2 py-1 flex flex-wrap items-center gap-x-2"
+                                    >
+                                      <span className="uppercase tracking-wide text-teal-500">{kr.source_type}</span>
+                                      <span>{kr.document_id}</span>
+                                      <span className="text-teal-600">v{kr.version}</span>
+                                      <span className="text-gray-500 not-italic">{kr.title}</span>
+                                      {kr.reference && (
+                                        <a
+                                          href={kr.reference}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-teal-400 underline decoration-teal-700 hover:text-teal-300"
+                                        >
+                                          reference ↗
+                                        </a>
+                                      )}
+                                    </div>
                                   ))}
                                 </div>
                               )}

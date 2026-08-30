@@ -3,8 +3,8 @@
 
 **Version:** 0.1
 **Last Updated:** 2026-08-30
-**Current Phase:** Phase 11 — AI Investigation Assistant
-**Overall Status:** Phase 11 IMPLEMENTED (backend + frontend built and tested; pending user review before commit)
+**Current Phase:** Phase 12 — RAG Knowledge Layer (External Knowledge Grounding)
+**Overall Status:** Phase 12 IMPLEMENTED (backend + frontend built and tested; pending user review before commit). Phase 11 reviewed (GO) but, like Phase 12, not yet committed.
 
 ---
 
@@ -68,7 +68,8 @@ requirements before moving into Artifact Extraction.
 | 8 | Complete | Correlation Engine (shared-entity, time-window, provenance) |
 | 9 | Complete | ML / Anomaly Detection (Isolation Forest, synthetic baseline) |
 | 10 | Complete | Investigation Graph |
-| 11 | Implemented (pending review) | AI Investigation Assistant (RAG deferred to Phase 12) |
+| 11 | Reviewed (GO), pending commit | AI Investigation Assistant |
+| 12 | Implemented (pending review) | RAG Knowledge Layer — external knowledge only (MITRE ATT&CK), deterministic lookup |
 | Testing infrastructure | 🟢 Active | Backend tests operational |
 | CI/CD | ⬜ Not Started | Not yet implemented |
 | Benchmarking | ⬜ Not Started | Not yet implemented |
@@ -273,8 +274,159 @@ Anthropic call path itself — as opposed to its error handling — was not
 exercised end-to-end), and that all other tabs continue working
 before and after using the Assistant tab.
 
-Latest backend test result:
+Latest backend test result (at Phase 11 completion):
 
 ```text
 202 passed, 1 xfailed, 2 warnings
+```
+
+Phase 11 was independently re-reviewed after implementation (fresh
+re-verification of every claim against source, not trusted from the
+implementation report): confirmed GO, no defects found, one additional
+cross-case-isolation regression test added during review. Result at
+review time: 203 passed, 1 xfailed. Not committed pending your approval.
+
+---
+
+Phase 12 — RAG Knowledge Layer (IMPLEMENTED, pending review)
+
+**Scope, per repository documentation (ROADMAP §15, TRACESPEC §6.12,
+PIPELINE Stage 17, AGENTS §13):** Phase 12 is external cybersecurity
+knowledge grounding ONLY. It never indexes or embeds TRACE-X's own case
+data — cases, events, detections, IOCs, incidents, evidence, reports,
+graph data, risk, or timeline all continue to reach the assistant exactly
+as Phase 11 already does it (deterministic SQL queries), unchanged.
+
+**Design decision — deterministic lookup, not vector retrieval:**
+ROADMAP.md explicitly says to "evaluate deterministic lookup first" and
+prefer it "when the knowledge source is structured." MITRE ATT&CK
+technique/tactic data is structured with stable identifiers (e.g.
+`T1059`), so Phase 12 is implemented as keyword/ID lookup over a bundled
+static snapshot — **no vector database, no embeddings, no LangChain, no
+new Python dependency, no database migration, no change to the
+PostgreSQL Docker image.** The retrieval boundary
+(`app.domain.knowledge.service.KnowledgeService`) is kept abstract enough
+that a future vector retriever could be added later without changing
+`AssistantService`'s integration point.
+
+**Knowledge source:** MITRE ATT&CK Enterprise, version **19.2**
+(`x_mitre_version` from the official STIX collection object), STIX spec
+3.3.0, collection last modified 2026-08-05T21:33:58.496Z per MITRE's own
+data. Acquired via a direct download of
+`mitre-attack/attack-stix-data/enterprise-attack/enterprise-attack.json`
+(MITRE's own GitHub-published STIX bundle) on 2026-08-30. Curated into a
+bundled, version-pinned static snapshot
+(`backend/app/domain/knowledge/data/mitre_attack_enterprise_v19_2.json`,
+~453 KB) containing all 697 non-deprecated/non-revoked Enterprise
+techniques and all 15 tactics, with descriptions trimmed to their first
+sentence(s) for a bounded context footprint — full attribution and the
+exact copyright statement from MITRE's own STIX marking-definition are
+recorded in the snapshot file and in
+`app/domain/knowledge/source.py`'s module docstring.
+**Licensing:** MITRE's Terms of Use (https://attack.mitre.org/resources/terms-of-use/)
+should be reviewed before any redistribution of this snapshot beyond
+TRACE-X's own internal use — this implementation records what MITRE's
+STIX bundle itself states but does not independently certify a license.
+**This is real, authoritative, network-acquired MITRE data — not a
+synthetic fixture** (network access was available in this environment;
+the "if unavailable, use a fixture" fallback path was not needed).
+
+**Architecture:** `backend/app/domain/knowledge/` — `source.py` (loads
+and validates the static snapshot, cached in-process), `lookup.py`
+(deterministic technique-ID / name / tactic / keyword matching, each
+result carries an explicit `match_reason`), `service.py`
+(`KnowledgeService`, bounded by `KNOWLEDGE_MAX_RESULTS` /
+`KNOWLEDGE_MAX_CONTEXT_CHARS`), `schemas.py` (`KnowledgeCitation`). This
+package has **zero** dependency on `CaseService`, `EventService`,
+`RiskService`, `DetectionRepository`, `GraphService`, evidence storage,
+correlation, or anomaly detection — no database session at all.
+
+**Assistant integration:** `AssistantService.query()` now: (1) validates
+the case and (2) builds Phase 11's case context exactly as before,
+unchanged; (3) separately queries `KnowledgeService` with **only the
+question text** (no case data, no event data, no evidence, no other
+case's data ever reaches it); (4) passes the retrieved knowledge to the
+provider as a distinct `[EXTERNAL KNOWLEDGE]` prompt section (never
+merged into `[CASE CONTEXT]`); (5)-(9) validates the response; (10)
+records one `AI_QUERY_EXECUTED` audit row (still no question text, no
+secrets, no raw content). A knowledge-lookup failure degrades gracefully
+— the assistant still answers from case context alone, surfaces a
+warning, and grounding_status downgrades from "ok" to "partial" rather
+than silently hiding the degradation; it never fails the whole request.
+
+**Citation / grounding design:** `AssistantClaim.refs` (validated
+TRACE-X case-object ids, unchanged from Phase 11) and the new
+`AssistantClaim.knowledge_refs` (validated `KnowledgeCitation` records)
+are two structurally separate fields with two separate server-side
+validation namespaces (`app.domain.assistant.grounding.validate_claims`)
+— a case object id can never become a knowledge citation and a knowledge
+citation can never enter `refs`. Critically, an "external_knowledge"
+claim's citation metadata (title, reference URL) is **never taken from
+the model's own output** — only the `(source_id, document_id, version)`
+key is trust-checked against what `KnowledgeService` actually retrieved
+for that query, and the server's own stored record is what appears in
+the response. An unresolvable citation is stripped and the claim demoted
+to "inference," exactly mirroring how an unsupported "observed" claim is
+already demoted — external knowledge can never masquerade as case
+evidence.
+
+**Prompt-injection defense:** the system prompt
+(`app.domain.assistant.service.SYSTEM_PROMPT`) explicitly instructs the
+model that `[EXTERNAL KNOWLEDGE]` is untrusted reference data that cannot
+override any rule, change claim classification, or request secrets —
+even if it contains text that looks like an instruction. This is
+belt-and-suspenders: claim classification and citation validity are
+enforced in code (`grounding.py`) regardless of what the retrieved text
+says, independent of whether the model follows the prompt rule.
+
+**API:** extends the existing `POST /cases/{case_id}/assistant/query` —
+no new endpoint. Response schema is additive only (`knowledge_refs` on
+each claim); `refs`, `grounding_status`, `provider`, `model`, `warnings`
+semantics are otherwise unchanged from Phase 11.
+
+**Security:** no authentication was added (unchanged, still documented as
+a known limitation — out of Phase 12 scope). The knowledge source is
+static and version-pinned rather than live-fetched at query time, so
+there is no new query-time network egress or live-update/poisoning
+surface beyond the one-time acquisition already completed and committed
+into the repo as a versioned file.
+
+**Known limitations:**
+- No `ANTHROPIC_API_KEY` was available in this environment, so the real
+  Anthropic call path (as opposed to its error-handling paths, which are
+  fully tested) was not exercised end-to-end; a disclosed local stand-in
+  provider was used only to visually verify the citation UI renders
+  correctly with real MITRE data (see test/smoke-test details below) —
+  this is clearly not a substitute for testing against the real model's
+  actual output behavior.
+- The repository still has no backend dependency manifest
+  (`requirements.txt`/`pyproject.toml`); Phase 12 deliberately required
+  **zero** new Python dependencies, so this pre-existing gap is not
+  widened, but it is not fixed either (unchanged, out of scope).
+- The deterministic keyword lookup is explicitly NOT semantic search —
+  it will miss paraphrased questions that don't share vocabulary with a
+  technique's name/description. This is a known, accepted trade-off of
+  the deterministic-lookup decision, not a defect.
+
+**Tests:** 46 new (19 in `tests/domain/test_knowledge.py` — snapshot
+loading/provenance, deterministic lookup, bounded results, malformed/
+missing-source handling; 27 across `tests/domain/test_assistant.py` and
+`tests/api/test_assistant.py` — knowledge/case-context additivity, no
+case data ever reaching the knowledge layer, empty/failed-lookup
+degradation, citation-spoofing rejection at both the grounding and API
+layers, prompt-injection resistance, forensic-data and knowledge-source
+non-mutation regression). Full backend suite: 249 passed, 1 xfailed, 0
+failed (203 prior + 46 new). Frontend `tsc --noEmit`: clean. Browser
+smoke test: all six existing tabs (Evidence/Events/Timeline/Risk/Report/
+Graph) confirmed working before and after using the Assistant tab; the
+Assistant tab's external-knowledge citation rendering (a distinct
+teal-colored "external knowledge" badge and citation card, structurally
+separate from case-object ref badges) was visually verified using the
+disclosed local stand-in provider described above with the real bundled
+T1059 MITRE record.
+
+Latest backend test result (Phase 12):
+
+```text
+249 passed, 1 xfailed, 2 warnings
 ```

@@ -118,13 +118,30 @@ export interface GraphResponse {
 // Deliberately structurally separate from RiskResponse / GraphResponse /
 // the report JSON — an assistant response can never be mistaken for a
 // deterministic TRACE-X finding.
-export type AssistantClaimType = "observed" | "inference" | "recommendation";
+//
+// Phase 12 — "external_knowledge" claims carry `knowledge_refs` (external
+// citations, e.g. MITRE ATT&CK) instead of `refs` (validated TRACE-X case
+// object ids). The two are never mixed by the backend — a knowledge
+// citation can never appear in `refs`, and a case object id can never
+// appear as a knowledge citation.
+export type AssistantClaimType = "observed" | "inference" | "recommendation" | "external_knowledge";
 export type AssistantGroundingStatus = "ok" | "partial" | "unavailable";
+
+export interface KnowledgeCitation {
+  source_id: string;
+  source_type: string;
+  document_id: string;
+  version: string;
+  title: string;
+  reference: string;
+  retrieval_method: "deterministic_lookup";
+}
 
 export interface AssistantClaim {
   text: string;
   type: AssistantClaimType;
   refs: string[];
+  knowledge_refs: KnowledgeCitation[];
 }
 
 export interface AssistantQueryResponse {

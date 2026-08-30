@@ -29,6 +29,7 @@ from app.core import config
 from app.domain.assistant.provider import AnthropicProvider, AssistantProvider, UnconfiguredProvider
 from app.domain.assistant.schemas import AssistantQueryRequest, AssistantQueryResponse
 from app.domain.assistant.service import AssistantService
+from app.domain.knowledge.service import KnowledgeService
 
 
 router = APIRouter(
@@ -367,28 +368,49 @@ def get_assistant_provider() -> AssistantProvider:
     )
 
 
+def get_knowledge_service() -> KnowledgeService:
+    """Build the Phase 12 external-knowledge service.
+
+    Independent of the database — reads a bundled, versioned, read-only
+    static snapshot (see app.domain.knowledge). A FastAPI dependency
+    (rather than a plain module call) purely so tests can override it,
+    matching the get_assistant_provider() pattern above.
+    """
+    return KnowledgeService()
+
+
 @router.post(
     "/{case_id}/assistant/query",
     response_model=AssistantQueryResponse,
-    summary="Ask the Phase 11 AI Investigation Assistant a question about this case",
+    summary="Ask the Phase 11/12 AI Investigation Assistant a question about this case",
 )
 def query_case_assistant(
     case_id: UUID,
     data: AssistantQueryRequest,
     db: Session = Depends(get_db),
     provider: AssistantProvider = Depends(get_assistant_provider),
+    knowledge_service: KnowledgeService = Depends(get_knowledge_service),
 ):
     """
     Evidence-grounded, analyst-facing AI assistant over this case's
-    already-processed data. It is NOT a forensic authority: every claim in
-    the response is labeled observed / inference / recommendation, and
-    grounding is validated server-side before being returned — an
-    "observed" claim always carries verified TRACE-X object references.
+    already-processed data, optionally supplemented with external
+    cybersecurity knowledge (Phase 12 — currently MITRE ATT&CK, via
+    deterministic keyword/ID lookup over a bundled, versioned static
+    snapshot; no vector database, no embeddings, no network access at
+    query time). It is NOT a forensic authority: every claim in the
+    response is labeled observed / inference / recommendation /
+    external_knowledge, and grounding is validated server-side before
+    being returned — an "observed" claim always carries verified TRACE-X
+    object references, and an "external_knowledge" claim always carries a
+    citation that was actually retrieved (never LLM-invented).
 
-    Read-only with respect to all forensic data: the only write this
-    endpoint performs is an AI_QUERY_EXECUTED audit-log entry. It never
-    modifies events, detections, IOCs, risk, timeline, or graph data, and
-    it never runs the correlation or anomaly-scan engines.
+    Read-only with respect to all forensic data and the knowledge source:
+    the only write this endpoint performs is an AI_QUERY_EXECUTED
+    audit-log entry. It never modifies events, detections, IOCs, risk,
+    timeline, or graph data, never runs the correlation or anomaly-scan
+    engines, and never sends case data (including raw evidence) into the
+    knowledge layer — only the investigator's question text is used for
+    knowledge lookup.
 
     KNOWN LIMITATION: this endpoint is not authenticated — TRACE-X has no
     authentication/authorization layer yet (see STATUS.md). It can incur
@@ -403,5 +425,5 @@ def query_case_assistant(
             detail="Case not found",
         )
 
-    service = AssistantService(db, provider)
+    service = AssistantService(db, provider, knowledge_service)
     return service.query(case_id=case_id, question=data.question)
