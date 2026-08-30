@@ -2,9 +2,9 @@
 # TRACE-X Project Status
 
 **Version:** 0.1
-**Last Updated:** 2026-08-28
-**Current Phase:** Phase 10 — Investigation Graph
-**Overall Status:** Phase 10 COMPLETE
+**Last Updated:** 2026-08-30
+**Current Phase:** Phase 11 — AI Investigation Assistant
+**Overall Status:** Phase 11 IMPLEMENTED (backend + frontend built and tested; pending user review before commit)
 
 ---
 
@@ -68,7 +68,7 @@ requirements before moving into Artifact Extraction.
 | 8 | Complete | Correlation Engine (shared-entity, time-window, provenance) |
 | 9 | Complete | ML / Anomaly Detection (Isolation Forest, synthetic baseline) |
 | 10 | Complete | Investigation Graph |
-| 11 | Not Started | LLM Integration |
+| 11 | Implemented (pending review) | AI Investigation Assistant (RAG deferred to Phase 12) |
 | Testing infrastructure | 🟢 Active | Backend tests operational |
 | CI/CD | ⬜ Not Started | Not yet implemented |
 | Benchmarking | ⬜ Not Started | Not yet implemented |
@@ -220,11 +220,61 @@ Backend logic to derive provenance, FK, and entity-based edges from events and d
 New API endpoint /cases/{case_id}/graph.
 Frontend graph visualization using react-force-graph.
 
-Phase 11 — LLM Integration (NOT STARTED)
-Core RAG functionality and LLM chat.
+Phase 11 — AI Investigation Assistant (IMPLEMENTED, pending review)
+
+Scope note: Phase 11 is the evidence-grounded AI Investigation Assistant
+only. RAG / external knowledge grounding (MITRE ATT&CK etc.) remains
+Phase 12 and was explicitly NOT implemented here — this reconciles the
+short-form "AI + RAG" label used elsewhere with the detailed Phase
+11/Phase 12 split that ROADMAP.md, TRACESPEC.md, PIPELINE.md, and
+BRAIN.md already describe consistently.
+
+What was built:
+- `backend/app/domain/assistant/` — thin, vendor-agnostic provider
+  abstraction (`AssistantProvider`), one concrete provider
+  (`AnthropicProvider`, model `claude-opus-5` by default, fully
+  configurable via `ASSISTANT_MODEL`), bounded case-scoped context
+  assembly reusing existing read-only services (`context.py`), and
+  explicit grounding validation (`grounding.py`) that never lets an
+  unverified object id reach the investigator as an "observed" claim.
+- New endpoint `POST /cases/{case_id}/assistant/query` — read-only with
+  respect to all forensic data; the only write it performs is an
+  `AI_QUERY_EXECUTED` audit-log entry (no question text, no secrets, no
+  raw evidence recorded).
+- Correlation/anomaly context is read from already-persisted
+  Incidents/Detections only — the assistant never triggers
+  `/correlate` or `/anomaly-scan` itself, since both mutate data.
+- New frontend "Assistant" tab in the case dashboard — independent of
+  the other tabs' shared loading/error state; a failed or unconfigured
+  assistant call cannot affect Evidence/Events/Timeline/Risk/Report/Graph.
+- Context limits (`ASSISTANT_MAX_EVENTS`, `_DETECTIONS`, `_IOCS`,
+  `_INCIDENTS`, `_GRAPH_NODES`, `_EVIDENCE`) are explicit and
+  configurable via environment variables, not silently unbounded.
+
+**Known limitation (unchanged from before Phase 11, now more relevant):**
+TRACE-X has no authentication/authorization layer anywhere in the
+backend. The new assistant endpoint can incur real provider API cost and
+expose case-scoped data to whichever provider is configured — anyone who
+can reach the API can call it. This is documented in the endpoint's
+docstring and in `app/core/config.py`, but was **not** fixed as part of
+Phase 11 per explicit scope (auth is Phase 14/15). Do not expose a
+deployment of this endpoint publicly before adding authentication.
+
+**Testing:** 25 new backend tests (provider mockability, grounding
+validation, valid/failed/malformed provider responses, invented-id
+rejection, observed-without-provenance demotion, forensic-data
+regression check, API-key-never-leaked check, response-schema
+separation) — all passing alongside the full existing suite (202 passed,
+1 xfailed total, zero regressions). Frontend: `tsc --noEmit` clean;
+browser smoke test confirmed the Assistant tab loads, submits, calls the
+API, renders the graceful "unavailable" state correctly (no
+`ANTHROPIC_API_KEY` was available in this environment, so the live
+Anthropic call path itself — as opposed to its error handling — was not
+exercised end-to-end), and that all other tabs continue working
+before and after using the Assistant tab.
 
 Latest backend test result:
 
 ```text
-170 passed, 1 xfailed, 2 warnings
+202 passed, 1 xfailed, 2 warnings
 ```

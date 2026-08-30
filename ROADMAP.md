@@ -63,7 +63,7 @@ PHASE 7  → MVP Integration
 PHASE 8  → Correlation Engine
 PHASE 9  → ML / Anomaly Detection
 PHASE 10 → Investigation Graph
-PHASE 11 → AI + RAG
+PHASE 11 → AI Investigation Assistant (RAG is Phase 12, not Phase 11 — see §14/§15)
 PHASE 12 → Investigator Dashboard
 PHASE 13 → Reporting & Export
 PHASE 14 → Security Hardening

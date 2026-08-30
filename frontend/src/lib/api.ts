@@ -114,6 +114,29 @@ export interface GraphResponse {
   edges: GraphEdge[];
 }
 
+// Phase 11 — AI Investigation Assistant.
+// Deliberately structurally separate from RiskResponse / GraphResponse /
+// the report JSON — an assistant response can never be mistaken for a
+// deterministic TRACE-X finding.
+export type AssistantClaimType = "observed" | "inference" | "recommendation";
+export type AssistantGroundingStatus = "ok" | "partial" | "unavailable";
+
+export interface AssistantClaim {
+  text: string;
+  type: AssistantClaimType;
+  refs: string[];
+}
+
+export interface AssistantQueryResponse {
+  case_id: string;
+  answer: string;
+  claims: AssistantClaim[];
+  grounding_status: AssistantGroundingStatus;
+  provider: string;
+  model: string | null;
+  warnings: string[];
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE_URL}${path}`, {
     ...init,
@@ -157,6 +180,11 @@ export const api = {
     }
     return request<GraphResponse>(`/cases/${id}/graph${qs}`);
   },
+  queryCaseAssistant: (id: string, question: string) =>
+    request<AssistantQueryResponse>(`/cases/${id}/assistant/query`, {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    }),
 
   // Evidence
   ingestEvidence: (caseId: string, name: string, file: File, source?: string) => {

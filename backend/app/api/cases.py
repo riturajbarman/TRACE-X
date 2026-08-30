@@ -25,6 +25,10 @@ from app.domain.anomaly.schemas import AnomalyScanResponse
 from app.domain.anomaly.service import AnomalyService
 from app.domain.graph.schemas import GraphResponse
 from app.domain.graph.service import GraphService
+from app.core import config
+from app.domain.assistant.provider import AnthropicProvider, AssistantProvider, UnconfiguredProvider
+from app.domain.assistant.schemas import AssistantQueryRequest, AssistantQueryResponse
+from app.domain.assistant.service import AssistantService
 
 
 router = APIRouter(
@@ -345,3 +349,59 @@ def get_case_graph(
         node_types=node_types,
         include_shared_entities=include_shared_entities,
     )
+
+
+def get_assistant_provider() -> AssistantProvider:
+    """Build the Phase 11 assistant provider from configuration.
+
+    Returns an UnconfiguredProvider (fails gracefully with
+    grounding_status "unavailable") when no ANTHROPIC_API_KEY is set,
+    rather than raising during app startup or on first use.
+    """
+    if not config.ASSISTANT_API_KEY:
+        return UnconfiguredProvider()
+    return AnthropicProvider(
+        api_key=config.ASSISTANT_API_KEY,
+        model=config.ASSISTANT_MODEL,
+        timeout_seconds=config.ASSISTANT_PROVIDER_TIMEOUT_SECONDS,
+    )
+
+
+@router.post(
+    "/{case_id}/assistant/query",
+    response_model=AssistantQueryResponse,
+    summary="Ask the Phase 11 AI Investigation Assistant a question about this case",
+)
+def query_case_assistant(
+    case_id: UUID,
+    data: AssistantQueryRequest,
+    db: Session = Depends(get_db),
+    provider: AssistantProvider = Depends(get_assistant_provider),
+):
+    """
+    Evidence-grounded, analyst-facing AI assistant over this case's
+    already-processed data. It is NOT a forensic authority: every claim in
+    the response is labeled observed / inference / recommendation, and
+    grounding is validated server-side before being returned — an
+    "observed" claim always carries verified TRACE-X object references.
+
+    Read-only with respect to all forensic data: the only write this
+    endpoint performs is an AI_QUERY_EXECUTED audit-log entry. It never
+    modifies events, detections, IOCs, risk, timeline, or graph data, and
+    it never runs the correlation or anomaly-scan engines.
+
+    KNOWN LIMITATION: this endpoint is not authenticated — TRACE-X has no
+    authentication/authorization layer yet (see STATUS.md). It can incur
+    provider API cost and expose case-scoped data to whichever provider is
+    configured. Do not expose this deployment publicly without adding
+    authentication first.
+    """
+    case_service = CaseService(db)
+    if case_service.get_by_id(case_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Case not found",
+        )
+
+    service = AssistantService(db, provider)
+    return service.query(case_id=case_id, question=data.question)

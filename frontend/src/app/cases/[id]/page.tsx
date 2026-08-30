@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, type Case, type Evidence, type Event, type RiskResponse, type ProcessResult, type GraphResponse } from "@/lib/api";
+import { api, type Case, type Evidence, type Event, type RiskResponse, type ProcessResult, type GraphResponse, type AssistantQueryResponse, type AssistantClaimType } from "@/lib/api";
 import dynamic from "next/dynamic";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
-type Tab = "evidence" | "events" | "detections" | "timeline" | "risk" | "report" | "graph";
+type Tab = "evidence" | "events" | "detections" | "timeline" | "risk" | "report" | "graph" | "assistant";
 
 function SeverityBadge({ severity }: { severity: string }) {
   const cls: Record<string, string> = {
@@ -57,6 +57,14 @@ export default function CaseDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [tabError, setTabError] = useState<string | null>(null);
 
+  // Assistant tab — deliberately independent of the shared tabLoading/
+  // tabError state above, so an assistant failure never affects the other
+  // tabs (and so it never auto-fires on tab switch, only on submit).
+  const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [assistantAnswer, setAssistantAnswer] = useState<AssistantQueryResponse | null>(null);
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+
   // Ingest form
   const [showIngest, setShowIngest] = useState(false);
   const [ingestName, setIngestName] = useState("");
@@ -103,6 +111,23 @@ export default function CaseDashboard() {
       setTabError((e as Error).message);
     } finally {
       setTabLoading(false);
+    }
+  };
+
+  const askAssistant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assistantQuestion.trim()) return;
+    setAssistantLoading(true);
+    setAssistantError(null);
+    try {
+      setAssistantAnswer(await api.queryCaseAssistant(id, assistantQuestion.trim()));
+    } catch (e) {
+      // A failed assistant request must never affect Evidence / Events /
+      // Timeline / Risk / Report / Graph — it only sets this tab's own
+      // error state.
+      setAssistantError((e as Error).message);
+    } finally {
+      setAssistantLoading(false);
     }
   };
 
@@ -182,6 +207,7 @@ export default function CaseDashboard() {
     { key: "risk", label: "Risk" },
     { key: "report", label: "Report" },
     { key: "graph", label: "Graph" },
+    { key: "assistant", label: "Assistant" },
   ];
 
   if (loading) return <div className="text-gray-500 text-sm">Loading case…</div>;
@@ -575,6 +601,129 @@ export default function CaseDashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Assistant Tab — Phase 11. Independent of tabLoading/tabError:
+          this is a submit-triggered Q&A, not an auto-load-on-open tab, and
+          a failure here must never affect any other tab. */}
+      {activeTab === "assistant" && (
+        <div>
+          <div className="mb-4 p-3 bg-indigo-950/40 border border-indigo-900 rounded-lg text-xs text-indigo-300">
+            The AI Investigation Assistant is <strong>assistive, not authoritative</strong>.
+            It only reasons over this case&apos;s already-processed data — it cannot see raw
+            evidence and cannot change any TRACE-X record. Every claim below is labeled
+            Observed, Inference, or Recommendation.
+          </div>
+
+          <form onSubmit={askAssistant} className="mb-5 flex gap-3">
+            <input
+              id="input-assistant-question"
+              className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+              placeholder="e.g. Why is this case high risk?"
+              value={assistantQuestion}
+              onChange={(e) => setAssistantQuestion(e.target.value)}
+              maxLength={2000}
+            />
+            <button
+              id="btn-ask-assistant"
+              type="submit"
+              disabled={assistantLoading || !assistantQuestion.trim()}
+              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+            >
+              {assistantLoading ? "Asking…" : "Ask"}
+            </button>
+          </form>
+
+          {assistantError && (
+            <div id="assistant-error" className="mb-4 p-3 bg-red-950 border border-red-800 rounded-lg text-red-300 text-sm">
+              {assistantError}
+            </div>
+          )}
+
+          {assistantLoading && (
+            <div className="text-gray-500 text-sm">Consulting the AI assistant…</div>
+          )}
+
+          {!assistantLoading && assistantAnswer && (
+            <div className="space-y-4">
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500 uppercase tracking-wide">Grounding</span>
+                  <span
+                    id="assistant-grounding-status"
+                    className={`text-xs font-medium px-2 py-0.5 rounded border ${
+                      assistantAnswer.grounding_status === "ok"
+                        ? "bg-green-900 text-green-300 border-green-700"
+                        : assistantAnswer.grounding_status === "partial"
+                        ? "bg-yellow-900 text-yellow-300 border-yellow-700"
+                        : "bg-gray-800 text-gray-400 border-gray-700"
+                    }`}
+                  >
+                    {assistantAnswer.grounding_status}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-600 font-mono">
+                  {assistantAnswer.provider}
+                  {assistantAnswer.model ? ` · ${assistantAnswer.model}` : ""}
+                </div>
+              </div>
+
+              {assistantAnswer.warnings.length > 0 && (
+                <div className="p-3 bg-yellow-950/40 border border-yellow-900 rounded-lg text-xs text-yellow-300 space-y-1">
+                  {assistantAnswer.warnings.map((w, i) => (
+                    <div key={i}>⚠ {w}</div>
+                  ))}
+                </div>
+              )}
+
+              <div id="assistant-answer" className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-sm text-gray-200 whitespace-pre-wrap">
+                {assistantAnswer.answer}
+              </div>
+
+              {assistantAnswer.claims.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Claims</h3>
+                  <div className="space-y-2">
+                    {assistantAnswer.claims.map((claim, i) => {
+                      const claimStyle: Record<AssistantClaimType, string> = {
+                        observed: "bg-blue-900 text-blue-300 border-blue-700",
+                        inference: "bg-purple-900 text-purple-300 border-purple-700",
+                        recommendation: "bg-amber-900 text-amber-300 border-amber-700",
+                      };
+                      return (
+                        <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+                          <div className="flex items-start gap-3">
+                            <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded border ${claimStyle[claim.type]}`}>
+                              {claim.type}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="text-sm text-gray-300">{claim.text}</div>
+                              {claim.refs.length > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {claim.refs.map((ref) => (
+                                    <span key={ref} className="text-[10px] font-mono text-gray-500 bg-gray-950 border border-gray-800 rounded px-1.5 py-0.5">
+                                      {ref}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!assistantLoading && !assistantAnswer && !assistantError && (
+            <div className="text-center py-12 text-gray-600 text-sm">
+              Ask a question about this case&apos;s processed evidence, risk, detections, or graph.
             </div>
           )}
         </div>
