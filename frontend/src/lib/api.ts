@@ -65,6 +65,38 @@ export interface IOC {
   created_at: string;
 }
 
+export interface Incident {
+  id: string;
+  case_id: string;
+  title: string;
+  severity: string;
+  confidence: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  timestamp: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  outcome: string;
+  details: Record<string, unknown> | null;
+}
+
+// Phase 13 — Investigator Dashboard. Read-only aggregate counts computed
+// server-side from already-persisted data (no client-side recomputation).
+export interface CaseSummary extends Case {
+  evidence_count: number;
+  event_count: number;
+  detection_count: number;
+  ioc_count: number;
+  incident_count: number;
+  failed_evidence_count: number;
+}
+
 export interface RiskSignal {
   source: string;
   description: string;
@@ -202,6 +234,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ question }),
     }),
+
+  // Phase 13 — Investigator Dashboard. All read-only, case-scoped.
+  getCaseSummary: (id: string) => request<CaseSummary>(`/cases/${id}/summary`),
+  getCaseDetections: (id: string) => request<Detection[]>(`/cases/${id}/detections`),
+  getCaseIOCs: (id: string) => request<IOC[]>(`/cases/${id}/iocs`),
+  getCaseIncidents: (id: string) => request<Incident[]>(`/cases/${id}/incidents`),
+  getCaseAuditLog: (id: string) => request<AuditEvent[]>(`/cases/${id}/audit`),
 
   // Evidence
   ingestEvidence: (caseId: string, name: string, file: File, source?: string) => {

@@ -21,6 +21,11 @@ class DetectionRepository:
         result = self.session.execute(stmt)
         return result.scalars().all()
 
+    def list_incidents_by_case(self, case_id: uuid.UUID) -> Sequence[Incident]:
+        stmt = select(Incident).where(Incident.case_id == case_id).order_by(Incident.created_at.asc())
+        result = self.session.execute(stmt)
+        return result.scalars().all()
+
     def create_detection(self, detection: Detection) -> Detection:
         self.session.add(detection)
         self.session.flush()

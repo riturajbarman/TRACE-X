@@ -2,9 +2,13 @@
 # TRACE-X Project Status
 
 **Version:** 0.1
-**Last Updated:** 2026-08-30
-**Current Phase:** Phase 12 — RAG Knowledge Layer (External Knowledge Grounding)
-**Overall Status:** Phase 12 IMPLEMENTED (backend + frontend built and tested; pending user review before commit). Phase 11 reviewed (GO) but, like Phase 12, not yet committed.
+**Last Updated:** 2026-08-31
+**Current Phase:** Phase 13 — Investigator Dashboard
+**Overall Status:** Phase 12 (RAG Knowledge Layer) is COMPLETE, COMMITTED, and PUSHED
+(commit `b0ddfce`, `origin/main` synchronized, independently re-reviewed:
+PASS, 249 passed / 1 xfailed / 0 failed). Phase 13 (Investigator
+Dashboard) IMPLEMENTED (backend + frontend built and tested; pending
+user review before commit).
 
 ---
 
@@ -284,11 +288,13 @@ Phase 11 was independently re-reviewed after implementation (fresh
 re-verification of every claim against source, not trusted from the
 implementation report): confirmed GO, no defects found, one additional
 cross-case-isolation regression test added during review. Result at
-review time: 203 passed, 1 xfailed. Not committed pending your approval.
+review time: 203 passed, 1 xfailed. Since committed and pushed as part
+of `ddfcd3e` on `main`/`origin/main`.
 
 ---
 
-Phase 12 — RAG Knowledge Layer (IMPLEMENTED, pending review)
+Phase 12 — RAG Knowledge Layer (COMPLETE, independently reviewed: PASS,
+COMMITTED and PUSHED as `b0ddfce` on `main`/`origin/main`)
 
 **Scope, per repository documentation (ROADMAP §15, TRACESPEC §6.12,
 PIPELINE Stage 17, AGENTS §13):** Phase 12 is external cybersecurity
@@ -429,4 +435,154 @@ Latest backend test result (Phase 12):
 
 ```text
 249 passed, 1 xfailed, 2 warnings
+```
+
+---
+
+Phase 13 — Investigator Dashboard (IMPLEMENTED, pending review)
+
+**Scope resolution (ROADMAP contradiction):** ROADMAP.md §2's summary
+table previously said "PHASE 13 → Reporting & Export," contradicting the
+detailed §16 ("Phase 13 — Investigator Dashboard") and §17 ("Phase 14 —
+Reporting & Export"). Per explicit direction, the detailed sections were
+treated as authoritative (they were the ones kept in sync with the
+actual Phase 11/12 RAG split) and §2's table was corrected to match —
+this also required correcting the previously-mismatched tail of the
+table (Security Hardening/Testing/Performance/Release each shift down
+one slot, to 15/16/17/18, matching §18-§21). No renumbering of the
+detailed sections themselves.
+
+**Incident-concept correction:** the Phase 13 pre-implementation audit
+had concluded no first-class Incident entity existed in the codebase.
+That was incorrect — `Incident` is a first-class SQLAlchemy model in
+`backend/app/domain/detection/models.py` (table `incidents`, with
+`incident_events`/`incident_detections` association tables), already
+produced by the Phase 8 correlation engine and already consumed by the
+Phase 11 assistant context and the Phase 10 investigation graph. This
+was corrected during implementation: an `Incidents` read-only view was
+added (§16's own main-view list includes "Incidents"), reusing the
+existing model/schema — no new entity was invented.
+
+**Backend — all new functionality is read-only aggregation over
+already-persisted data; zero forensic mutation, zero new tables, zero
+migration:**
+- `GET /cases/{case_id}/summary` extended (existing endpoint, not new):
+  `CaseSummaryResponse` gained `detection_count`, `ioc_count`,
+  `incident_count`, `failed_evidence_count` alongside the existing
+  `evidence_count`/`event_count` — computed via `func.count()` queries
+  in `case/repository.py`, reusing the existing `Evidence.status`
+  (`FAILED`) field for "processing failures" per §16's DoD.
+- `GET /cases/{case_id}/detections` (new) — reuses
+  `DetectionRepository.list_detections_by_case` (already existed,
+  used internally by `RiskService`).
+- `GET /cases/{case_id}/iocs` (new) — reuses
+  `DetectionRepository.list_iocs_by_case` (already existed).
+- `GET /cases/{case_id}/incidents` (new) — reuses a new
+  `DetectionRepository.list_incidents_by_case`, following the exact
+  pattern of the two methods above; `IncidentResponse` schema already
+  existed in `detection/schemas.py`, unused until now.
+- `GET /cases/{case_id}/audit` (new) — new
+  `AuditRepository.list_by_case` / `AuditService.list_case_events`.
+  `AuditEvent` has no dedicated `case_id` column (case-level actions are
+  recorded as `entity_type="case", entity_id=case_id`; evidence-level
+  actions as `entity_type="evidence", entity_id=evidence_id`), so the
+  case-scoped query matches both provenance patterns explicitly (a
+  direct case match, or an evidence match against a subquery of that
+  case's own evidence ids) — this guarantees another case's audit
+  events can never appear, without adding a schema column. Audit
+  *recording* semantics are completely unchanged.
+- All four new endpoints follow the exact existing `/cases/{case_id}/...`
+  convention (`Depends(get_db)`, `response_model=`, 404-on-missing-case
+  via `CaseService.get_by_id`), matching `evidence`/`events`/`graph`.
+- **Files touched:** `backend/app/api/cases.py`,
+  `backend/app/domain/case/{repository,service,schemas}.py`,
+  `backend/app/domain/detection/repository.py`,
+  `backend/app/domain/audit/{repository,service}.py`, new
+  `backend/app/domain/audit/schemas.py`.
+- **Untouched (per explicit scope):** `assistant/`, `knowledge/`,
+  `graph/`, `evidence/` (models), `artifact/`, `event/`, `processing/` —
+  none of these domains were modified.
+
+**Frontend:** `frontend/src/lib/api.ts` gained `CaseSummary`,
+`Incident`, `AuditEvent` types and `getCaseSummary` /
+`getCaseDetections` / `getCaseIOCs` / `getCaseIncidents` /
+`getCaseAuditLog` client functions (typed, no `any`).
+`frontend/src/app/cases/[id]/page.tsx`: the case-detail page now fetches
+`CaseSummaryResponse` instead of the plain `Case` (one request, same as
+before) and renders a clickable dashboard stat strip (Evidence / Events
+/ Detections / IOCs / Incidents / Processing Failures, each linking to
+its tab; the failures card is highlighted red only when count > 0) plus
+four new read-only tabs (Detections, IOCs, Incidents, Audit Log) added
+after Graph, before Assistant, following the exact existing tab/loading/
+error pattern. The existing 7 tabs (Evidence/Events/Timeline/Risk/
+Report/Graph/Assistant) are functionally unchanged.
+`frontend/src/app/page.tsx` (case list) gained a small `#cases-summary`
+status strip (total/open/closed) computed client-side from the
+already-fetched case list — deliberately **not** a per-case summary
+fetch, to avoid an N+1 request pattern; each case's own aggregate
+dashboard lives on its detail page (one `/summary` request per case
+view, not one per list row).
+
+**Security / forensic safety:** every new endpoint is read-only and
+case-scoped (404 on missing case; cross-case isolation independently
+tested for detections/IOCs/incidents/audit). No endpoint touches raw
+evidence bytes, `STORAGE_PATH`, the Assistant, or the Knowledge layer.
+No authentication/RBAC was added (unchanged, out of scope). A dedicated
+regression test (`test_dashboard_endpoints_do_not_mutate_forensic_data`)
+confirms Evidence/Event/Detection/IOC/Incident row counts are identical
+before and after exercising every new (and several existing) GET
+endpoint for a case.
+
+**Database:** no migration — every new count/list is computed from
+already-existing tables and columns (`Evidence.status`, `Detection`,
+`IOC`, `Incident`, `AuditEvent`). `git diff --stat -- backend/alembic
+docker-compose.yml` is empty.
+
+**Dependencies:** zero new dependencies, either side. The pre-existing
+backend dependency-manifest gap (no `requirements.txt`/`pyproject.toml`)
+is unchanged.
+
+**Tests:** 20 new (`backend/tests/api/test_dashboard.py`) — summary
+contract (all 6 counts, missing-case 404, empty-case zero-counts),
+detections/IOCs/incidents endpoints (list, 404, empty list, cross-case
+isolation), audit endpoint (case-created event visible, evidence-scoped
+event visible, 404, empty case, two dedicated cross-case-leakage tests
+for both audit provenance patterns), and one forensic-mutation
+regression test covering all new + several existing GET endpoints. Full
+backend suite: **269 passed, 1 xfailed, 0 failed** (249 prior + 20 new,
+zero regressions). Frontend `tsc --noEmit`: clean. `git diff --check`:
+clean.
+
+**Browser smoke test** (real Chromium via `playwright-core`, real
+Uvicorn + Next.js dev servers, a real case created through the actual
+API and seeded with one real Detection/IOC/Incident/failed-Evidence
+record via direct DB insert — not fabricated frontend data): case list
+loads with the new status strip; case-detail dashboard strip renders
+the exact real counts (2 evidence, 1 event, 1 detection, 1 IOC, 1
+incident, 1 processing failure, correctly red-highlighted); all 11 tabs
+(the original 7 plus Detections/IOCs/Incidents/Audit Log) reachable
+with zero tab errors; Detections/IOCs/Incidents tabs render the actual
+seeded records; Audit Log tab shows the real `CASE_CREATED` event;
+clicking a dashboard stat card correctly navigates to its tab; the
+Assistant tab (Phase 11/12) remains fully functional and unaffected.
+**Zero console errors, zero page errors.** Screenshots saved during this
+session for manual review if needed.
+
+**Known limitations:**
+- The case-list page intentionally does not show per-case aggregate
+  counts (evidence/detection/etc.) to avoid an N+1 request pattern at
+  list-page scale; only case count/status is shown there. Per-case
+  aggregate detail is one request away on each case's own page.
+- Same pre-existing limitations as every prior phase: no authentication
+  anywhere in TRACE-X, no backend dependency manifest.
+- The Audit Log view is only as complete as what `AuditService.
+  record_event` already records elsewhere in the codebase (e.g. no
+  audit event exists today for `EVIDENCE_STATUS_CHANGED` on every
+  transition, or for detection/IOC/incident creation) — Phase 13 exposes
+  what's already recorded, it does not add new audit call sites.
+
+Latest backend test result (Phase 13):
+
+```text
+269 passed, 1 xfailed, 2 warnings
 ```

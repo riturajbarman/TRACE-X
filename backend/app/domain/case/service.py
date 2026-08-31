@@ -67,6 +67,10 @@ class CaseService:
             "updated_at": case.updated_at,
             "evidence_count": counts["evidence_count"],
             "event_count": counts["event_count"],
+            "detection_count": counts["detection_count"],
+            "ioc_count": counts["ioc_count"],
+            "incident_count": counts["incident_count"],
+            "failed_evidence_count": counts["failed_evidence_count"],
         }
 
     def list(

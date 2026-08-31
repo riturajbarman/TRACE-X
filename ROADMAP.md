@@ -64,12 +64,17 @@ PHASE 8  → Correlation Engine
 PHASE 9  → ML / Anomaly Detection
 PHASE 10 → Investigation Graph
 PHASE 11 → AI Investigation Assistant (RAG is Phase 12, not Phase 11 — see §14/§15)
-PHASE 12 → Investigator Dashboard
-PHASE 13 → Reporting & Export
-PHASE 14 → Security Hardening
-PHASE 15 → Testing & Benchmarking
-PHASE 16 → Performance & Scale
-PHASE 17 → Release / Open Source / SIH
+PHASE 12 → RAG Knowledge Layer
+PHASE 13 → Investigator Dashboard (this summary table previously said
+           "Reporting & Export" here, contradicting the detailed spec in
+           §16 below — corrected during Phase 13 implementation; the
+           detailed sections were the ones kept in sync with the actual
+           Phase 11/12 split, so they are authoritative)
+PHASE 14 → Reporting & Export
+PHASE 15 → Security Hardening
+PHASE 16 → Testing & Benchmarking
+PHASE 17 → Performance & Scale
+PHASE 18 → Release / Open Source / SIH
 ```
 
 ---

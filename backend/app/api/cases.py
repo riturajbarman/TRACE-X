@@ -15,8 +15,11 @@ from app.domain.case.schemas import (
 from app.domain.case.service import CaseService
 from app.domain.correlation.schemas import CorrelationGroupResponse, CorrelationResponse
 from app.domain.correlation.service import CorrelationService
-from app.domain.detection.schemas import RiskResponse
+from app.domain.detection.schemas import DetectionResponse, IOCResponse, IncidentResponse, RiskResponse
+from app.domain.detection.repository import DetectionRepository
 from app.domain.detection.service import RiskService
+from app.domain.audit.schemas import AuditEventResponse
+from app.domain.audit.service import AuditService
 from app.domain.evidence.schemas import EvidenceResponse
 from app.domain.event.schemas import EventResponse
 from app.domain.event.service import EventService
@@ -350,6 +353,67 @@ def get_case_graph(
         node_types=node_types,
         include_shared_entities=include_shared_entities,
     )
+
+
+@router.get(
+    "/{case_id}/detections",
+    response_model=list[DetectionResponse],
+    summary="Phase 13 — read-only, case-scoped list of Detections",
+)
+def list_case_detections(case_id: UUID, db: Session = Depends(get_db)):
+    """Read-only view over already-persisted Detection records for this
+    case (Phase 5/6 rule/anomaly detections). No mutation, no new
+    detection semantics — reuses DetectionRepository.list_detections_by_case."""
+    case_service = CaseService(db)
+    if case_service.get_by_id(case_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    return DetectionRepository(db).list_detections_by_case(case_id)
+
+
+@router.get(
+    "/{case_id}/iocs",
+    response_model=list[IOCResponse],
+    summary="Phase 13 — read-only, case-scoped list of IOCs",
+)
+def list_case_iocs(case_id: UUID, db: Session = Depends(get_db)):
+    """Read-only view over already-persisted IOC records for this case.
+    No mutation, no new IOC semantics — reuses
+    DetectionRepository.list_iocs_by_case."""
+    case_service = CaseService(db)
+    if case_service.get_by_id(case_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    return DetectionRepository(db).list_iocs_by_case(case_id)
+
+
+@router.get(
+    "/{case_id}/incidents",
+    response_model=list[IncidentResponse],
+    summary="Phase 13 — read-only, case-scoped list of correlated Incidents",
+)
+def list_case_incidents(case_id: UUID, db: Session = Depends(get_db)):
+    """Read-only view over already-persisted Incident records for this
+    case (Phase 8 correlation engine output). No mutation, no new
+    incident semantics — reuses DetectionRepository.list_incidents_by_case."""
+    case_service = CaseService(db)
+    if case_service.get_by_id(case_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    return DetectionRepository(db).list_incidents_by_case(case_id)
+
+
+@router.get(
+    "/{case_id}/audit",
+    response_model=list[AuditEventResponse],
+    summary="Phase 13 — read-only, case-scoped audit trail",
+)
+def list_case_audit(case_id: UUID, db: Session = Depends(get_db)):
+    """Read-only, case-scoped audit history. Does not change how audit
+    events are recorded — only exposes what is already persisted, matched
+    to this case (see AuditRepository.list_by_case for the exact
+    case-scoping rule and why AuditEvent has no case_id column)."""
+    case_service = CaseService(db)
+    if case_service.get_by_id(case_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    return AuditService(db).list_case_events(case_id)
 
 
 def get_assistant_provider() -> AssistantProvider:

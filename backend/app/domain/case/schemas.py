@@ -31,3 +31,9 @@ class CaseResponse(BaseModel):
 class CaseSummaryResponse(CaseResponse):
     evidence_count: int
     event_count: int
+    # Phase 13 — Investigator Dashboard: existing counts, read-only,
+    # computed from already-persisted data (no new tables/columns).
+    detection_count: int
+    ioc_count: int
+    incident_count: int
+    failed_evidence_count: int

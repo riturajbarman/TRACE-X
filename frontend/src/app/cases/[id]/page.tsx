@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, type Case, type Evidence, type Event, type RiskResponse, type ProcessResult, type GraphResponse, type AssistantQueryResponse, type AssistantClaimType } from "@/lib/api";
+import { api, type CaseSummary, type Evidence, type Event, type RiskResponse, type ProcessResult, type GraphResponse, type AssistantQueryResponse, type AssistantClaimType, type Detection, type IOC, type Incident, type AuditEvent } from "@/lib/api";
 import dynamic from "next/dynamic";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
-type Tab = "evidence" | "events" | "detections" | "timeline" | "risk" | "report" | "graph" | "assistant";
+type Tab = "evidence" | "events" | "timeline" | "risk" | "report" | "graph" | "detections" | "iocs" | "incidents" | "audit" | "assistant";
 
 function SeverityBadge({ severity }: { severity: string }) {
   const cls: Record<string, string> = {
@@ -44,12 +44,19 @@ function StatusBadge({ status }: { status: string }) {
 export default function CaseDashboard() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<Tab>("evidence");
-  const [caseData, setCaseData] = useState<Case | null>(null);
+  const [caseData, setCaseData] = useState<CaseSummary | null>(null);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [risk, setRisk] = useState<RiskResponse | null>(null);
   const [report, setReport] = useState<Record<string, unknown> | null>(null);
   const [graph, setGraph] = useState<GraphResponse | null>(null);
+  // Phase 13 — Investigator Dashboard: read-only views, own tab-scoped
+  // loading via the shared tabLoading/tabError state (same pattern as
+  // Events/Timeline/Risk/Report/Graph above).
+  const [detections, setDetections] = useState<Detection[]>([]);
+  const [iocs, setIocs] = useState<IOC[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditEvent[]>([]);
   const [graphFilter, setGraphFilter] = useState<string>("all");
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +89,10 @@ export default function CaseDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [c, ev] = await Promise.all([api.getCase(id), api.listEvidence()]);
+      // getCaseSummary is the existing Case fields plus the Phase 13
+      // read-only aggregate counts — a single request, backend is the
+      // source of truth for every count (no client-side recomputation).
+      const [c, ev] = await Promise.all([api.getCaseSummary(id), api.listEvidence()]);
       setCaseData(c);
       setEvidence(ev.filter((e) => e.case_id === id));
     } catch (e) {
@@ -99,8 +109,63 @@ export default function CaseDashboard() {
     if (activeTab === "risk") loadRisk();
     if (activeTab === "report") loadReport();
     if (activeTab === "graph") loadGraph();
+    if (activeTab === "detections") loadDetections();
+    if (activeTab === "iocs") loadIOCs();
+    if (activeTab === "incidents") loadIncidents();
+    if (activeTab === "audit") loadAudit();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, graphFilter]);
+
+  // Phase 13 — Investigator Dashboard read-only tabs. Each follows the
+  // exact same tabLoading/tabError pattern as Events/Risk/Report/Graph
+  // above; a failure in one never affects any other tab.
+  const loadDetections = async () => {
+    setTabLoading(true);
+    setTabError(null);
+    try {
+      setDetections(await api.getCaseDetections(id));
+    } catch (e) {
+      setTabError((e as Error).message);
+    } finally {
+      setTabLoading(false);
+    }
+  };
+
+  const loadIOCs = async () => {
+    setTabLoading(true);
+    setTabError(null);
+    try {
+      setIocs(await api.getCaseIOCs(id));
+    } catch (e) {
+      setTabError((e as Error).message);
+    } finally {
+      setTabLoading(false);
+    }
+  };
+
+  const loadIncidents = async () => {
+    setTabLoading(true);
+    setTabError(null);
+    try {
+      setIncidents(await api.getCaseIncidents(id));
+    } catch (e) {
+      setTabError((e as Error).message);
+    } finally {
+      setTabLoading(false);
+    }
+  };
+
+  const loadAudit = async () => {
+    setTabLoading(true);
+    setTabError(null);
+    try {
+      setAuditLog(await api.getCaseAuditLog(id));
+    } catch (e) {
+      setTabError((e as Error).message);
+    } finally {
+      setTabLoading(false);
+    }
+  };
 
   const loadGraph = async () => {
     setTabLoading(true);
@@ -207,6 +272,10 @@ export default function CaseDashboard() {
     { key: "risk", label: "Risk" },
     { key: "report", label: "Report" },
     { key: "graph", label: "Graph" },
+    { key: "detections", label: "Detections" },
+    { key: "iocs", label: "IOCs" },
+    { key: "incidents", label: "Incidents" },
+    { key: "audit", label: "Audit Log" },
     { key: "assistant", label: "Assistant" },
   ];
 
@@ -239,6 +308,35 @@ export default function CaseDashboard() {
             <span className="text-xs text-gray-600 font-mono">{caseData.id.slice(0, 8)}…</span>
           </div>
         </div>
+      </div>
+
+      {/* Dashboard summary strip — Phase 13. Every count comes directly
+          from GET /cases/{id}/summary (server-computed, read-only); this
+          strip never implies functionality that doesn't exist — each
+          stat links to the tab that actually shows the underlying data. */}
+      <div id="dashboard-summary" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {([
+          { id: "evidence", label: "Evidence", value: caseData.evidence_count, tab: "evidence" as Tab },
+          { id: "events", label: "Events", value: caseData.event_count, tab: "events" as Tab },
+          { id: "detections", label: "Detections", value: caseData.detection_count, tab: "detections" as Tab },
+          { id: "iocs", label: "IOCs", value: caseData.ioc_count, tab: "iocs" as Tab },
+          { id: "incidents", label: "Incidents", value: caseData.incident_count, tab: "incidents" as Tab },
+          { id: "failed", label: "Processing Failures", value: caseData.failed_evidence_count, tab: "evidence" as Tab },
+        ]).map((stat) => (
+          <button
+            key={stat.id}
+            id={`stat-${stat.id}`}
+            onClick={() => setActiveTab(stat.tab)}
+            className={`text-left bg-gray-900 border rounded-xl p-3 hover:border-indigo-600 transition ${
+              stat.id === "failed" && stat.value > 0 ? "border-red-800" : "border-gray-800"
+            }`}
+          >
+            <div className={`text-2xl font-bold ${stat.id === "failed" && stat.value > 0 ? "text-red-400" : "text-gray-100"}`}>
+              {stat.value}
+            </div>
+            <div className="text-xs text-gray-500 mt-0.5">{stat.label}</div>
+          </button>
+        ))}
       </div>
 
       {/* Tabs */}
@@ -601,6 +699,117 @@ export default function CaseDashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Detections Tab — Phase 13. Read-only view over already-persisted
+          Detection records (Phase 5/6 rule/anomaly engine output). */}
+      {activeTab === "detections" && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Detections ({detections.length})</h2>
+          {tabLoading ? (
+            <div className="text-gray-500 text-sm">Loading detections…</div>
+          ) : detections.length === 0 ? (
+            <div className="text-center py-12 text-gray-600 text-sm">No detections yet. Process evidence to run detection rules.</div>
+          ) : (
+            <div className="space-y-2">
+              {detections.map((d) => (
+                <div key={d.id} id={`detection-${d.id}`} className="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-gray-200">{d.detection_type}</span>
+                      {d.rule_id && <span className="text-xs text-gray-600 font-mono">{d.rule_id}</span>}
+                      <SeverityBadge severity={d.severity} />
+                    </div>
+                    <p className="text-xs text-gray-600">Confidence: {d.confidence}% · {new Date(d.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* IOCs Tab — Phase 13. Read-only view over already-persisted IOC
+          records. */}
+      {activeTab === "iocs" && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Indicators of Compromise ({iocs.length})</h2>
+          {tabLoading ? (
+            <div className="text-gray-500 text-sm">Loading IOCs…</div>
+          ) : iocs.length === 0 ? (
+            <div className="text-center py-12 text-gray-600 text-sm">No IOCs yet. Process evidence to extract indicators.</div>
+          ) : (
+            <div className="space-y-2">
+              {iocs.map((ioc) => (
+                <div key={ioc.id} id={`ioc-${ioc.id}`} className="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs text-gray-500 uppercase">{ioc.ioc_type}</span>
+                      <span className="text-sm text-gray-200 font-mono truncate">{ioc.value}</span>
+                      <SeverityBadge severity={ioc.severity} />
+                    </div>
+                    <p className="text-xs text-gray-600">Confidence: {ioc.confidence}% · {new Date(ioc.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Incidents Tab — Phase 13. Read-only view over already-persisted
+          Incident records (Phase 8 correlation engine output). */}
+      {activeTab === "incidents" && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Incidents ({incidents.length})</h2>
+          {tabLoading ? (
+            <div className="text-gray-500 text-sm">Loading incidents…</div>
+          ) : incidents.length === 0 ? (
+            <div className="text-center py-12 text-gray-600 text-sm">No correlated incidents yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {incidents.map((inc) => (
+                <div key={inc.id} id={`incident-${inc.id}`} className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm text-gray-200">{inc.title}</span>
+                    <SeverityBadge severity={inc.severity} />
+                    <StatusBadge status={inc.status} />
+                  </div>
+                  <p className="text-xs text-gray-600">Confidence: {inc.confidence}% · {new Date(inc.created_at).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Audit Log Tab — Phase 13. Read-only, case-scoped view of the
+          existing audit trail. Never modifies recording semantics. */}
+      {activeTab === "audit" && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Audit Log ({auditLog.length})</h2>
+          {tabLoading ? (
+            <div className="text-gray-500 text-sm">Loading audit log…</div>
+          ) : auditLog.length === 0 ? (
+            <div className="text-center py-12 text-gray-600 text-sm">No audit events recorded for this case yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {auditLog.map((a) => (
+                <div key={a.id} id={`audit-${a.id}`} className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-xs font-mono">
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="text-indigo-400">{new Date(a.timestamp).toISOString()}</span>
+                    <span className="text-gray-300">{a.action}</span>
+                    <span className={a.outcome === "SUCCESS" ? "text-green-400" : "text-red-400"}>{a.outcome}</span>
+                    <span className="text-gray-600">{a.entity_type}{a.entity_id ? `:${a.entity_id.slice(0, 8)}…` : ""}</span>
+                  </div>
+                  {a.details && Object.keys(a.details).length > 0 && (
+                    <div className="text-gray-600 truncate">{JSON.stringify(a.details)}</div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -1,3 +1,4 @@
+from typing import Sequence
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.domain.audit.models import AuditEvent
@@ -24,3 +25,8 @@ class AuditService:
             details=details,
         )
         return self.repository.create(event)
+
+    def list_case_events(self, case_id: UUID) -> Sequence[AuditEvent]:
+        """Phase 13 — read-only case-scoped audit trail. Does not alter
+        recording semantics; wraps AuditRepository.list_by_case."""
+        return self.repository.list_by_case(case_id)

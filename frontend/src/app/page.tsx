@@ -134,6 +134,21 @@ export default function CasesPage() {
         </div>
       )}
 
+      {/* Phase 13 — lightweight status strip computed from the case list
+          already fetched above (no additional per-case request; a
+          full per-case aggregate dashboard lives on each case's own
+          detail page via GET /cases/{id}/summary — one request per case
+          view, not one per row here). */}
+      {!loading && cases.length > 0 && (
+        <div id="cases-summary" className="flex gap-4 mb-4 text-xs text-gray-500">
+          <span>{cases.length} case{cases.length === 1 ? "" : "s"}</span>
+          <span>·</span>
+          <span>{cases.filter((c) => c.status === "OPEN").length} open</span>
+          <span>·</span>
+          <span>{cases.filter((c) => c.status === "CLOSED").length} closed</span>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-gray-500 text-sm">Loading cases…</div>
       ) : cases.length === 0 ? (

@@ -38,8 +38,9 @@ class CaseRepository:
 
     def get_summary_counts(self, case_id: UUID) -> dict:
         from sqlalchemy import func
-        from app.domain.evidence.models import Evidence
+        from app.domain.evidence.models import Evidence, EvidenceStatus
         from app.domain.event.models import Event
+        from app.domain.detection.models import IOC, Detection, Incident
 
         evidence_count = self.db.scalar(
             select(func.count(Evidence.id)).where(Evidence.case_id == case_id)
@@ -49,9 +50,35 @@ class CaseRepository:
             select(func.count(Event.id)).where(Event.case_id == case_id)
         ) or 0
 
+        detection_count = self.db.scalar(
+            select(func.count(Detection.id)).where(Detection.case_id == case_id)
+        ) or 0
+
+        ioc_count = self.db.scalar(
+            select(func.count(IOC.id)).where(IOC.case_id == case_id)
+        ) or 0
+
+        incident_count = self.db.scalar(
+            select(func.count(Incident.id)).where(Incident.case_id == case_id)
+        ) or 0
+
+        # "Processing failures" (Phase 13, ROADMAP §16 DoD): evidence whose
+        # ingestion/processing did not complete successfully. Reuses the
+        # existing Evidence.status field — no new column, no migration.
+        failed_evidence_count = self.db.scalar(
+            select(func.count(Evidence.id)).where(
+                Evidence.case_id == case_id,
+                Evidence.status == EvidenceStatus.FAILED,
+            )
+        ) or 0
+
         return {
             "evidence_count": evidence_count,
             "event_count": event_count,
+            "detection_count": detection_count,
+            "ioc_count": ioc_count,
+            "incident_count": incident_count,
+            "failed_evidence_count": failed_evidence_count,
         }
 
     def list_evidence_by_case(
